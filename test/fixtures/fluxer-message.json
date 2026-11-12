@@ -1,0 +1,21 @@
+{
+  "id": "9223372036854775810",
+  "channel_id": "9223372036854775809",
+  "author": {
+    "id": "9223372036854775812",
+    "username": "fluxer-bot",
+    "discriminator": "0000",
+    "bot": true
+  },
+  "content": "pong",
+  "timestamp": "2026-11-11T00:00:00.000Z",
+  "tts": false,
+  "mention_everyone": false,
+  "mentions": [],
+  "mention_roles": [],
+  "attachments": [],
+  "embeds": [],
+  "pinned": false,
+  "webhook_id": "9223372036854775811",
+  "type": 0
+}

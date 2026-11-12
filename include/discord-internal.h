@@ -650,6 +650,12 @@ CCORDcode discord_rest_run(struct discord_rest *rest,
                            const char endpoint_fmt[],
                            ...) PRINTF_LIKE(5, 6);
 
+CCORDcode discord_rest_unsupported(
+    struct discord *client,
+    void (*fail)(struct discord *client, struct discord_response *response),
+    void *data,
+    const void *keep);
+
 /**
  * @brief Stop all bucket's on-going, pending and timed-out requests
  *

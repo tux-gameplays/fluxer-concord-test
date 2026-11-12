@@ -177,3 +177,21 @@ discord_rest_run(struct discord_rest *rest,
     return discord_request_begin(&rest->requestor, attr, body, method,
                                  endpoint, key);
 }
+
+CCORDcode
+discord_rest_unsupported(
+    struct discord *client,
+    void (*fail)(struct discord *client, struct discord_response *response),
+    void *data,
+    const void *keep)
+{
+    if (fail) {
+        struct discord_response response = {
+            .data = data,
+            .keep = keep,
+            .code = CCORD_UNSUPPORTED,
+        };
+        fail(client, &response);
+    }
+    return CCORD_UNSUPPORTED;
+}

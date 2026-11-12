@@ -73,12 +73,12 @@
 - [x] **Step 4: Add the `instance_origin` field to `struct discord_config`, parse it from JSON, and copy it when constructing the client through `discord_from_config()`.** Keep it client-owned and preserved for clones; reject non-origin values before discovery.
 - [x] **Step 5: Implement discovery request `GET {origin}/.well-known/fluxer` with no Authorization header and validate required endpoint fields.** Use `https://api.fluxer.app` as the official default origin confirmed by Fluxer's own production OpenAPI configuration; do not hard-code downstream API or Gateway hosts.
 - [x] **Step 6: Run `make -C test fluxer_discovery`; expect PASS, including the Review Focus discovery and self-host endpoint tests.**
-- [ ] **Step 7: Commit as `feat: discover Fluxer instance endpoints`.**
+- [x] **Step 7: Commit as `feat: discover Fluxer instance endpoints`.**
 
 ### Task 3: Port REST transport and core message/user operations
 
 **Files:**
-- Modify: `src/discord-rest_request.c`, `src/discord-rest.c`, `src/discord-rest_ratelimit.c`, `src/channel.c`, `src/user.c`, `src/gateway.c`
+- Modify: `include/discord-internal.h`, `src/discord-rest_request.c`, `src/discord-rest.c`, `src/discord-rest_ratelimit.c`, `src/channel.c`, `src/user.c`, `src/gateway.c`
 - Modify as needed: `gencodecs/api/channel.PRE.h`, `gencodecs/api/user.PRE.h`, `gencodecs/discord_codecs.PRE.h`
 - Modify: `test/rest.c`, `test/Makefile`
 - Create: `test/fluxer_rest.c`, `test/fixtures/fluxer-message.json`, `test/fixtures/fluxer-user.json`
@@ -86,14 +86,15 @@
 **Interfaces:**
 - Consumes: Task 2's discovered `api_public` base and instance origin.
 - Produces: resource calls using the Fluxer `/v1` routes and `Authorization: Bot <token>` unless Fluxer docs require a different scheme; request execution must preserve current callback/sync APIs.
+- Produces: `CCORDcode discord_rest_unsupported(struct discord *, void (*fail)(struct discord *, struct discord_response *), void *data, const void *keep)` for immediate unsupported results with the existing failure callback contract.
 
-- [ ] **Step 1: Add a local HTTP fixture test** for a Fluxer message create request; assert discovered host, `/v1/channels/{channel_id}/messages` path, Bot authorization, JSON request body, and decoded response.
-- [ ] **Step 2: Add decoder tests** for Fluxer message/user fixtures, including a snowflake greater than `INT64_MAX`, webhook author data and fields absent from Discord-shaped objects.
-- [ ] **Step 3: Run `make -C test fluxer_rest`; verify failures against Discord hard-coded base/path/decoders.**
-- [ ] **Step 4: Replace fixed `DISCORD_API_BASE_URL` concatenation with the discovered Fluxer API base while retaining the existing per-operation callback and error flow.**
-- [ ] **Step 5: Port channel message read/create/edit/delete and all operations in `src/user.c` to exact Fluxer routes/payloads; adapt snowflake JSON encode/decode to decimal strings and map error/rate-limit responses.**
-- [ ] **Step 6: Update generated codec source templates and regenerate codecs; do not hand-edit generated outputs when a PRE template is the source.**
-- [ ] **Step 7: Run `make -C test fluxer_rest` and `make`; expect PASS.** Include Review Focus large snowflake test.
+- [x] **Step 1: Add a local HTTP fixture test** for a Fluxer message create request; assert discovered host, `/v1/channels/{channel_id}/messages` path, Bot authorization, JSON request body, and decoded response.
+- [x] **Step 2: Add decoder tests** for Fluxer message/user fixtures, including a snowflake greater than `INT64_MAX`, webhook author data and fields absent from Discord-shaped objects.
+- [x] **Step 3: Run `fluxer_rest`.** Task 2 already made the REST base discovery-driven; if the new fixture passes immediately, retain that implementation and record its routes/codecs as supported rather than rewriting compatible code.
+- [x] **Step 4: Verify the existing dynamic API base, Bot authorization, sync/callback contracts, and error/rate-limit behavior against fixtures; add only missing changes.**
+- [x] **Step 5: Map every operation in `src/user.c`; keep Fluxer-supported routes and use `discord_rest_unsupported()` for profile, legacy group-DM input, and connections operations without a compatible bot-token contract.**
+- [x] **Step 6: Update generated codec source templates only if fixtures expose a shape mismatch; regenerate when a PRE template changes, and never hand-edit generated outputs.**
+- [x] **Step 7: Run `make -C test clean`, `make test`, `fluxer_rest`, `fluxer_compatibility`, and `test/check_fluxer_compatibility.sh`; expect PASS.** Include Review Focus large snowflake test and compatibility-catalog coverage.
 - [ ] **Step 8: Commit as `feat: port Fluxer REST message and user APIs`.**
 
 ### Task 4: Port Fluxer Gateway protocol and event loop
