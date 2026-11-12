@@ -6,7 +6,7 @@ INCLUDE_DIR   = $(TOP)/include
 GENCODECS_DIR = $(TOP)/gencodecs
 
 TEST_DISCORD = racecond rest timeout
-TEST_CORE    = websockets queriec fluxer_compatibility
+TEST_CORE    = websockets queriec fluxer_compatibility fluxer_discovery
 
 TESTS = $(TEST_DISCORD) $(TEST_GITHUB) $(TEST_CORE)
 

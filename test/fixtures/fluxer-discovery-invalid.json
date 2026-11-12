@@ -1,0 +1,6 @@
+{
+  "endpoints": {
+    "api_public": "https://api.selfhost.test",
+    "gateway": "https://gateway.selfhost.test/socket"
+  }
+}

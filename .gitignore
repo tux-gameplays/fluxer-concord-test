@@ -25,6 +25,8 @@
 !src/*.c
 !test
 !test/*.sh
+!test/fixtures/
+!test/fixtures/*.json
 !.clang-format
 !.git*
 !Doxyfile

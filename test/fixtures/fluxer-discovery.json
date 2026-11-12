@@ -1,0 +1,7 @@
+{
+  "endpoints": {
+    "api_public": "https://api.selfhost.test/prefix",
+    "gateway": "wss://gateway.selfhost.test/socket",
+    "media": "https://media.selfhost.test"
+  }
+}

@@ -38,6 +38,7 @@ OBJS += discord-refcount.o         \
         discord-timer.o            \
         discord-misc.o             \
         discord-worker.o           \
+        fluxer-discovery.o         \
         application_command.o      \
         auto_moderation.o          \
         interaction.o              \

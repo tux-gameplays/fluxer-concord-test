@@ -1199,6 +1199,10 @@ struct discord {
     struct logmod logmod;
     /** the configuration handler */
     struct discord_config config;
+    /** service endpoints discovered from the configured Fluxer instance */
+    char *api_base_url;
+    char *gateway_url;
+    char *media_url;
     /** the id of the process where this modules was created */
     unsigned pid;
     /** whether this is the original client or a clone */

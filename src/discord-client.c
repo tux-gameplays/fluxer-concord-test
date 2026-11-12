@@ -8,6 +8,7 @@
 
 #include "discord.h"
 #include "discord-internal.h"
+#include "fluxer-discovery.h"
 #include "discord-worker.h"
 #include "concord-once.h"
 #include "concord-notifier.h"
@@ -298,12 +299,33 @@ _discord_init(struct discord *client)
                    discord_strerror(code, NULL), code);
         return code;
     }
+    if (!client->config.instance_origin) {
+        if (!cog_strndup("https://api.fluxer.app",
+                         sizeof("https://api.fluxer.app") - 1,
+                         &client->config.instance_origin))
+        {
+            return CCORD_OUT_OF_MEMORY;
+        }
+    }
     if ((code = discord_rest_init(&client->rest, client->config.token))) {
         logmod_log(FATAL, client->logger,
                    "Couldn't initialize REST API: %s (code %d)",
                    discord_strerror(code, NULL), code);
         return code;
     }
+    struct fluxer_discovery discovery = { 0 };
+    if ((code = fluxer_discovery_fetch(client->config.instance_origin,
+                                      &discovery)) != CCORD_OK)
+    {
+        logmod_log(ERROR, client->logger,
+                   "Couldn't discover Fluxer instance endpoints: %s (code %d)",
+                   ccord_strerror(code), code);
+        return code;
+    }
+    client->api_base_url = discovery.api_base;
+    client->gateway_url = discovery.gateway_url;
+    client->media_url = discovery.media_url;
+    ua_set_url(client->rest.requestor.ua, client->api_base_url);
     if ((code = discord_gateway_init(&client->gw, client->config.token))) {
         logmod_log(FATAL, client->logger,
                    "Couldn't initialize Gateway API: %s (code %d)",
@@ -744,6 +766,16 @@ _discord_config_from_json(struct discord_config *config,
         }
         _discord_config_disable_from_json(config, &client->file);
     }
+    if ((field = discord_config_get_field(
+             client, (char *[1]){ "instance_origin" }, 1)),
+        field.size)
+    {
+        if (!cog_strndup(field.start, field.size, &config->instance_origin)) {
+            logmod_log(ERROR, client->logger,
+                       "Couldn't copy Fluxer instance origin");
+            return _discord_config_cleanup(config), CCORD_OUT_OF_MEMORY;
+        }
+    }
     for (size_t i = 0; i < config->log.disable.size; ++i) {
         logmod_toggle_logger(&client->logmod, config->log.disable.ids[i]);
         logmod_log(INFO, client->logger, "Disabled logging for '%s'",
@@ -757,6 +789,9 @@ _discord_config_cleanup(struct discord_config *config)
 {
     if (config->token) {
         free(config->token);
+    }
+    if (config->instance_origin) {
+        free(config->instance_origin);
     }
     if (config->log.trace) {
         fclose(config->log.trace);
@@ -839,6 +874,15 @@ discord_from_config(const struct discord_config *config)
         return discord_cleanup(client), NULL;
     }
     client->config = *config;
+    client->config.instance_origin = NULL;
+    if (config->instance_origin
+        && !cog_strndup(config->instance_origin, strlen(config->instance_origin),
+                        &client->config.instance_origin))
+    {
+        logmod_log(FATAL, client->logger,
+                   "Couldn't copy Fluxer instance origin");
+        return discord_cleanup(client), NULL;
+    }
     if ((code = _discord_init(client)) != CCORD_OK) {
         logmod_log(FATAL, client->logger, "Couldn't initialize client: %s",
                    discord_strerror(code, NULL));
@@ -948,6 +992,9 @@ discord_cleanup(struct discord *client)
     discord_user_cleanup(&client->self);
     if (client->cache.cleanup) client->cache.cleanup(client);
     discord_refcounter_cleanup(&client->refcounter);
+    free(client->api_base_url);
+    free(client->gateway_url);
+    free(client->media_url);
     discord_timers_cleanup(client, &client->timers.user);
     discord_timers_cleanup(client, &client->timers.internal);
     logmod_cleanup(&client->logmod);

@@ -235,6 +235,8 @@ struct discord *discord_from_json(const char config_file[]);
 struct discord_config {
     /** the bot token */
     char *token;
+    /** Fluxer instance origin; defaults to https://api.fluxer.app */
+    char *instance_origin;
     struct {
         /** minimum logging level */
         enum logmod_levels level;

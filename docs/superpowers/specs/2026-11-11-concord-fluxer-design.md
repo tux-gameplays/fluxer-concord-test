@@ -59,6 +59,6 @@ The first acceptance example is the existing C bot listening for `!ping` and rep
 
 ## Open implementation decisions
 
-- The best public configuration API for the instance origin (environment/config file versus a new setter) should follow Concord's existing config conventions after inspecting its initialization and cloning paths.
+- Use Concord's existing `discord_config`/JSON configuration path for the instance origin; constructor initialization performs REST work before returning, so a post-construction setter cannot reliably select a self-hosted instance.
 - Exact operation mapping, codec conversions and unsupported list require a full inventory against the current Fluxer docs/OpenAPI and server behavior. These are implementation findings, not assumptions of parity.
 - The official instance origin/default should be confirmed from Fluxer's current project configuration/documentation; discovery remains the source of all API and Gateway URLs.

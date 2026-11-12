@@ -22,6 +22,7 @@
 - Do not copy Fluxer server implementation code into Concord.
 - Run all build and test commands inside the project container: `docker run --rm -v "$PWD:/workspace" -w /workspace coelho-bot ...`; the host toolchain is unusable here.
 - `make -C test <target>` builds a test binary but does not run it; execute `/workspace/test/<target>` in the same container command to verify assertions.
+- After rebuilding `libdiscord.a`, run `make -C test clean` before rebuilding a focused test target because test binaries do not declare the library as a Make dependency.
 
 ## Review Focus
 
@@ -47,32 +48,31 @@
 - Produces: `#define CCORD_UNSUPPORTED -15` (use the next free core error value), with names/messages returned by both `ccord_code_as_string()` and `ccord_strerror()`.
 - Produces: a catalog entry for every public operation declared in public headers, classified `supported`, `adapted`, `unsupported`, or temporarily `pending` with its header/resource. `pending` is allowed only while Tasks 2-9 establish the actual mapping; the final Task 10 check rejects every remaining `pending` entry.
 
-- [ ] **Step 1: Write failing error-code tests** asserting the dedicated code has stable name/message strings and is distinct from `CCORD_HTTP_CODE`, `CCORD_BAD_DECODE`, and `CCORD_RESOURCE_UNAVAILABLE`.
-- [ ] **Step 2: Build and run `fluxer_compatibility`; verify it fails because code `-15` currently maps to the unknown-code text.**
-- [ ] **Step 3: Add `CCORD_UNSUPPORTED` to `core/concord-error.h` and both string conversion switches in `core/concord-error.c`.**
-- [ ] **Step 4: Add `test/check_fluxer_compatibility.sh` to extract public function declarations from public headers (excluding `discord-internal.h`, `discord-request.h`, `discord-response.h` and `discord-worker.h`) and verify every operation appears exactly once in `docs/FLUXER_COMPATIBILITY.md`; populate the initial catalog from Concord headers.** Mark application-command and interaction operations unsupported; mark unmapped resource operations pending until their resource task validates them.
-- [ ] **Step 5: Run `fluxer_compatibility` and `test/check_fluxer_compatibility.sh`; expect PASS, zero missing/duplicate entries and no pending command/interaction operations.**
-- [ ] **Step 6: Commit as `feat: add Fluxer compatibility catalog and unsupported error`.**
+- [x] **Step 1: Write failing error-code tests** asserting the dedicated code has stable name/message strings and is distinct from `CCORD_HTTP_CODE`, `CCORD_BAD_DECODE`, and `CCORD_RESOURCE_UNAVAILABLE`.
+- [x] **Step 2: Build and run `fluxer_compatibility`; verify it fails because code `-15` currently maps to the unknown-code text.**
+- [x] **Step 3: Add `CCORD_UNSUPPORTED` to `core/concord-error.h` and both string conversion switches in `core/concord-error.c`.**
+- [x] **Step 4: Add `test/check_fluxer_compatibility.sh` to extract public function declarations from public headers (excluding `discord-internal.h`, `discord-request.h`, `discord-response.h` and `discord-worker.h`) and verify every operation appears exactly once in `docs/FLUXER_COMPATIBILITY.md`; populate the initial catalog from Concord headers.** Mark application-command and interaction operations unsupported; mark unmapped resource operations pending until their resource task validates them.
+- [x] **Step 5: Run `fluxer_compatibility` and `test/check_fluxer_compatibility.sh`; expect PASS, zero missing/duplicate entries and no pending command/interaction operations.**
+- [x] **Step 6: Commit as `feat: add Fluxer compatibility catalog and unsupported error`.**
 
 ### Task 2: Add Fluxer instance configuration and discovery
 
 **Files:**
-- Modify: `include/discord.h`, `src/discord-client.c`, `src/discord-rest.c`, `src/discord-rest_request.c`
+- Modify: `.gitignore`, `test/.gitignore`, `include/discord.h`, `include/discord-internal.h`, `src/discord-client.c`, `src/discord-rest_request.c`
 - Create: `src/fluxer-discovery.c`, `include/fluxer-discovery.h`
 - Modify: `src/Makefile`, `test/Makefile`
 - Create: `test/fluxer_discovery.c`, `test/fixtures/fluxer-discovery.json`, `test/fixtures/fluxer-discovery-invalid.json`
 
 **Interfaces:**
-- Produces: `CCORDcode discord_set_instance_origin(struct discord *client, const char origin[])`; accepts an HTTP(S) origin before `discord_run`, and returns `CCORD_BAD_PARAMETER` for invalid input.
-- Produces: a client config field `instance_origin`; `discord_from_token()` defaults to `https://api.fluxer.app`, while `discord_from_json()` may override it through the `instance_origin` JSON key.
+- Produces: `struct discord_config.instance_origin`; `discord_from_token()` defaults to `https://api.fluxer.app`, while `discord_from_config()` and `discord_from_json()` accept an explicit origin. The origin is copied into client-owned memory before initialization.
 - Produces: discovery parser that resolves and stores the exact `endpoints.api_public`, `endpoints.gateway`, and `endpoints.media` values plus the API `/v1` base.
 
-- [ ] **Step 1: Add tests** for parsing a valid discovery document with distinct API, Gateway and media hosts; assert exact advertised URLs are retained.
-- [ ] **Step 2: Add tests** for missing fields, malformed JSON, invalid schemes and failed discovery HTTP responses; assert initialization fails clearly and does not enqueue a guessed endpoint request.
-- [ ] **Step 3: Run `make -C test fluxer_discovery`; verify expected missing-interface failures.**
-- [ ] **Step 4: Implement `discord_set_instance_origin()` and JSON config parsing.** Preserve the selected origin when cloning the client and reject changes once a connection/session is active.
-- [ ] **Step 5: Implement discovery request `GET {origin}/.well-known/fluxer` with no Authorization header and validate required endpoint fields.** Use `https://api.fluxer.app` as the official default origin confirmed by Fluxer's own production OpenAPI configuration; do not hard-code downstream API or Gateway hosts.
-- [ ] **Step 6: Run `make -C test fluxer_discovery`; expect PASS, including the Review Focus discovery and self-host endpoint tests.**
+- [x] **Step 1: Add tests** for parsing a valid discovery document with distinct API, Gateway and media hosts; assert exact advertised URLs are retained.
+- [x] **Step 2: Add tests** for missing fields, malformed JSON, invalid schemes and failed discovery HTTP responses; assert initialization fails clearly and does not enqueue a guessed endpoint request.
+- [x] **Step 3: Run `make -C test fluxer_discovery`; verify expected missing-interface failures.**
+- [x] **Step 4: Add the `instance_origin` field to `struct discord_config`, parse it from JSON, and copy it when constructing the client through `discord_from_config()`.** Keep it client-owned and preserved for clones; reject non-origin values before discovery.
+- [x] **Step 5: Implement discovery request `GET {origin}/.well-known/fluxer` with no Authorization header and validate required endpoint fields.** Use `https://api.fluxer.app` as the official default origin confirmed by Fluxer's own production OpenAPI configuration; do not hard-code downstream API or Gateway hosts.
+- [x] **Step 6: Run `make -C test fluxer_discovery`; expect PASS, including the Review Focus discovery and self-host endpoint tests.**
 - [ ] **Step 7: Commit as `feat: discover Fluxer instance endpoints`.**
 
 ### Task 3: Port REST transport and core message/user operations

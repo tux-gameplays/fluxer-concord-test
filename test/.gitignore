@@ -6,4 +6,6 @@
 !.gitignore
 !*.c
 !*.sh
+!fixtures/
+!fixtures/*.json
 !Makefile
