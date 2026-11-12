@@ -28,6 +28,8 @@ typedef int CCORDcode;
 #define CCORD_OUT_OF_MEMORY -60
 /** check strerror() for more information */
 #define CCORD_ERRNO -50
+/** operation is not supported by the current service */
+#define CCORD_UNSUPPORTED -15
 /** curl has been compiled without the --enable-websockets flag */
 #define CCORD_CURL_WEBSOCKETS_MISSING -14
 /** curl need to be updated to 8.7.1 or greater */

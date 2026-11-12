@@ -8,6 +8,11 @@
 !core/*.h
 !docs
 !docs/*
+!docs/superpowers/
+!docs/superpowers/specs/
+!docs/superpowers/specs/*.md
+!docs/superpowers/plans/
+!docs/superpowers/plans/*.md
 !doxygen-awesome-css
 !examples
 !gencodecs
@@ -19,6 +24,7 @@
 !src
 !src/*.c
 !test
+!test/*.sh
 !.clang-format
 !.git*
 !Doxyfile

@@ -27,6 +27,7 @@ ccord_code_as_string(CCORDcode code)
         CASE_RETURN_STR(CCORD_BAD_DECODE);
         CASE_RETURN_STR(CCORD_OUT_OF_MEMORY);
         CASE_RETURN_STR(CCORD_ERRNO);
+        CASE_RETURN_STR(CCORD_UNSUPPORTED);
     default:
         return "Unknown: Code received doesn't match any description";
     }
@@ -78,6 +79,8 @@ ccord_strerror(CCORDcode code)
         return "Failure: Out of memory, something really bad happened!";
     case CCORD_ERRNO:
         return "Failure: Check strerror() for more information";
+    case CCORD_UNSUPPORTED:
+        return "Failure: This operation is not supported by the current service";
     default:
         return "Unknown: Code received doesn't match any description";
     }

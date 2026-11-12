@@ -5,4 +5,5 @@
 !test_config.json
 !.gitignore
 !*.c
+!*.sh
 !Makefile
