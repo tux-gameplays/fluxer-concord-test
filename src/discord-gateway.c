@@ -11,6 +11,10 @@
     case code:                                                                \
         return #code
 
+static bool _discord_gateway_url_with_parameters(char destination[],
+                                                 size_t destination_size,
+                                                 const char source[]);
+
 static const char *
 _discord_gateway_opcode_print(enum discord_gateway_opcodes opcode)
 {
@@ -229,12 +233,19 @@ _discord_on_dispatch(struct discord_gateway *gw)
 
         if ((f = jsmnf_find(gw->payload.data, "resume_gateway_url", 18))) {
             const char *url = gw->payload.json.start + f->v->start;
+            char gateway_url[256];
             int url_len = f->v->end - f->v->start;
-            if ((url_len = snprintf(
-                     gw->session->resume_url, sizeof(gw->session->resume_url),
-                     "%.*s%s" DISCORD_GATEWAY_URL_SUFFIX, url_len, url,
-                     ('/' == url[url_len - 1]) ? "" : "/"))
-                < 0)
+            if (url_len <= 0 || (size_t)url_len >= sizeof(gateway_url))
+            {
+                logmod_log(ERROR, gw->logger,
+                           "Failed to set resume_url from READY event");
+                gw->session->status = DISCORD_SESSION_SHUTDOWN;
+                return;
+            }
+            snprintf(gateway_url, sizeof(gateway_url), "%.*s", url_len, url);
+            if (!_discord_gateway_url_with_parameters(
+                    gw->session->resume_url, sizeof(gw->session->resume_url),
+                    gateway_url))
             {
                 logmod_log(ERROR, gw->logger,
                            "Failed to set resume_url from READY event");
@@ -456,8 +467,7 @@ _discord_gateway_payload_from_json(struct discord_gateway_payload *payload,
         payload->event = _discord_gateway_event_eval(payload->name);
     }
     if ((f = jsmnf_find(loader.root, "s", 1))) {
-        int seq = (int)strtol(text + f->v->start, NULL, 10);
-        if (seq) payload->seq = seq;
+        payload->seq = (int)strtol(text + f->v->start, NULL, 10);
     }
     if ((f = jsmnf_find(loader.root, "op", 2)))
         payload->opcode =
@@ -498,6 +508,9 @@ _ws_on_text(void *p_gw, struct websockets *ws, const char *text, size_t len)
         break;
     case DISCORD_GATEWAY_HEARTBEAT_ACK:
         _discord_on_heartbeat_ack(gw);
+        break;
+    case DISCORD_GATEWAY_HEARTBEAT:
+        discord_gateway_send_heartbeat(gw, gw->payload.seq);
         break;
     default:
         logmod_log(ERROR, gw->logger,
@@ -743,6 +756,17 @@ _ws_curl_debug_trace(
 #endif /* CCORD_DEBUG_WEBSOCKETS */
 
 static bool
+_discord_gateway_url_with_parameters(char destination[],
+                                     size_t destination_size,
+                                     const char source[])
+{
+    const char *separator = strchr(source, '?') ? "&" : "?";
+    int length = snprintf(destination, destination_size,
+                          "%s%sv=1&encoding=json", source, separator);
+    return length >= 0 && (size_t)length < destination_size;
+}
+
+static bool
 _discord_gateway_session_from_json(struct discord_gateway_session *session,
                                    const char text[],
                                    size_t len)
@@ -757,19 +781,6 @@ _discord_gateway_session_from_json(struct discord_gateway_session *session,
     }
 
     const jsmnf_pair *f;
-    if ((f = jsmnf_find(loader.root, "url", 3))) {
-        const char *url = text + f->v->start;
-        int url_len = f->v->end - f->v->start;
-        if ((url_len = snprintf(session->base_url, sizeof(session->base_url),
-                                "%.*s%s" DISCORD_GATEWAY_URL_SUFFIX, url_len,
-                                url, ('/' == url[url_len - 1]) ? "" : "/"))
-            < 0)
-        {
-            logmod_log(ERROR, NULL,
-                       "Failed to set base_url from Gateway Bot information");
-            return false;
-        }
-    }
     if ((f = jsmnf_find(loader.root, "shards", 6)))
         session->shards = (int)strtol(text + f->v->start, NULL, 10);
     if ((f = jsmnf_find(loader.root, "session_start_limit", 19)))
@@ -801,6 +812,14 @@ discord_gateway_start(struct discord_gateway *gw)
         return CCORD_DISCORD_BAD_AUTH;
     }
     free(json.start);
+    if (!_discord_gateway_url_with_parameters(
+            gw->session->base_url, sizeof(gw->session->base_url),
+            CLIENT(gw, gw)->gateway_url))
+    {
+        logmod_log(FATAL, gw->logger,
+                   "Fluxer Gateway URL is missing or too long");
+        return CCORD_BAD_DECODE;
+    }
 
     if (!gw->session->start_limit.remaining) {
         logmod_log(FATAL, gw->logger,

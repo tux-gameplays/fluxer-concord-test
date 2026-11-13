@@ -166,7 +166,26 @@ discord_gateway_send_identify(struct discord_gateway *gw,
         jsonb_key_auto(&b, &body.start, &body.size, "op", 2);
         jsonb_number_auto(&b, &body.start, &body.size, 2);
         jsonb_key_auto(&b, &body.start, &body.size, "d", 1);
-        discord_identify_to_jsonb(&b, &body.start, &body.size, identify);
+        jsonb_object_auto(&b, &body.start, &body.size);
+        jsonb_key_auto(&b, &body.start, &body.size, "token", 5);
+        jsonb_string_auto(&b, &body.start, &body.size, identify->token,
+                          strlen(identify->token));
+        jsonb_key_auto(&b, &body.start, &body.size, "properties", 10);
+        jsonb_object_auto(&b, &body.start, &body.size);
+        jsonb_key_auto(&b, &body.start, &body.size, "os", 2);
+        jsonb_string_auto(&b, &body.start, &body.size,
+                          identify->properties->os,
+                          strlen(identify->properties->os));
+        jsonb_key_auto(&b, &body.start, &body.size, "browser", 7);
+        jsonb_string_auto(&b, &body.start, &body.size,
+                          identify->properties->browser,
+                          strlen(identify->properties->browser));
+        jsonb_key_auto(&b, &body.start, &body.size, "device", 6);
+        jsonb_string_auto(&b, &body.start, &body.size,
+                          identify->properties->device,
+                          strlen(identify->properties->device));
+        jsonb_object_pop_auto(&b, &body.start, &body.size);
+        jsonb_object_pop_auto(&b, &body.start, &body.size);
         jsonb_object_pop_auto(&b, &body.start, &body.size);
     }
 
@@ -254,7 +273,10 @@ discord_gateway_send_heartbeat(struct discord_gateway *gw, int seq)
         jsonb_key(&b, buf, sizeof(buf), "op", 2);
         jsonb_number(&b, buf, sizeof(buf), 1);
         jsonb_key(&b, buf, sizeof(buf), "d", 1);
-        jsonb_number(&b, buf, sizeof(buf), seq);
+        if (seq > 0)
+            jsonb_number(&b, buf, sizeof(buf), seq);
+        else
+            jsonb_null(&b, buf, sizeof(buf));
         jsonb_object_pop(&b, buf, sizeof(buf));
     }
 

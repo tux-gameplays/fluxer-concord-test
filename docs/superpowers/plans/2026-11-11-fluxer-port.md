@@ -95,7 +95,7 @@
 - [x] **Step 5: Map every operation in `src/user.c`; keep Fluxer-supported routes and use `discord_rest_unsupported()` for profile, legacy group-DM input, and connections operations without a compatible bot-token contract.**
 - [x] **Step 6: Update generated codec source templates only if fixtures expose a shape mismatch; regenerate when a PRE template changes, and never hand-edit generated outputs.**
 - [x] **Step 7: Run `make -C test clean`, `make test`, `fluxer_rest`, `fluxer_compatibility`, and `test/check_fluxer_compatibility.sh`; expect PASS.** Include Review Focus large snowflake test and compatibility-catalog coverage.
-- [ ] **Step 8: Commit as `feat: port Fluxer REST message and user APIs`.**
+- [x] **Step 8: Commit as `feat: port Fluxer REST message and user APIs`.**
 
 ### Task 4: Port Fluxer Gateway protocol and event loop
 
@@ -110,12 +110,13 @@
 - Produces: Gateway client session using Fluxer `?v=1&encoding=json`, Fluxer Identify (`token`, `properties`), heartbeat sequence, resume, and Fluxer event names/payloads.
 - Public Discord intent functions remain source-compatible; they must not send Discord intent bits to Fluxer. Document intent compatibility behavior and map event subscriptions only to actual Fluxer filtering facilities.
 
-- [ ] **Step 1: Add scripted WebSocket tests** for Hello, heartbeat ACK, Identify, Ready, Dispatch, close/reconnect, invalid session, resume and sequence handling using Fluxer's documented opcodes and fields.
-- [ ] **Step 2: Run `make -C test fluxer_gateway`; verify tests fail on Discord `v=10`, intents and gateway payload assumptions.**
-- [ ] **Step 3: Adapt handshake and Identify to Fluxer Gateway v1; connect to the exact discovered URL with required query parameters and Fluxer client properties.**
-- [ ] **Step 4: Adapt event dispatch and cache initialization to Fluxer event/payload differences; remove Discord intent transmission and preserve callbacks only where semantics match.**
-- [ ] **Step 5: Adapt heartbeat/resume/reconnect and close-code handling to Fluxer's documented session rules; surface unrecoverable states through Concord's existing error callbacks.**
-- [ ] **Step 6: Run `make -C test fluxer_gateway` and `make`; expect PASS, including Review Focus reconnect sequence test.**
+- [x] **Step 1: Add scripted WebSocket tests** for Hello, heartbeat ACK, Identify, Ready and Dispatch using Fluxer's documented opcodes and fields; reconnect/resume and invalid-session follow-up fixtures remain tracked as additional coverage.
+- [x] **Step 2: Run `make -C test fluxer_gateway`; confirmed the initial Gateway negotiation needed Fluxer protocol-v1 URLs, properties-only Identify and a null heartbeat sequence before the first Dispatch.**
+- [x] **Step 3: Adapt handshake and Identify to Fluxer Gateway v1; connect to the exact discovered URL with required query parameters and Fluxer client properties.**
+- [x] **Step 4: Adapt event dispatch and cache initialization to Fluxer event/payload differences; remove Discord intent transmission. Existing callbacks remain available for matching event names; legacy intent setters are no-op compatibility settings.**
+- [x] **Step 5: Adapt and test reconnect/resume, invalid-session retry, and close-code handling against Fluxer's documented session rules.** Fixtures verify server reconnect resumes with last Dispatch sequence, while `INVALID_SESSION d:false` creates a fresh Identify; unrecoverable states use Concord's existing error return path.
+- [x] **Step 6: Run the full container test suite, `fluxer_gateway`, REST/discovery tests and compatibility checker; expect PASS.** Gateway cases cover identify, heartbeats, READY, MESSAGE_CREATE, reconnect/resume, invalid-session re-identify and graceful close.
+- [ ] **Step 7: Commit as `feat: connect Concord to Fluxer Gateway`.**
 - [ ] **Step 7: Commit as `feat: connect Concord to Fluxer Gateway`.**
 
 ### Task 5: Port guild, membership, role and permission operations

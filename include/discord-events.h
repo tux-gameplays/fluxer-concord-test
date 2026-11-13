@@ -159,19 +159,21 @@ void discord_set_event_scheduler(struct discord *client,
                                  discord_ev_scheduler callback);
 
 /**
- * @brief Subscribe to Discord Events
+ * @brief Retain legacy intent configuration without changing Fluxer delivery
  *
  * @param client the client created with discord_from_token()
- * @param code the intents opcode, can be set as a bitmask operation
+ * @param code the legacy Discord intent bitmask (not sent to Fluxer)
+ * @note Fluxer does not use Discord intent bitmasks. The functions remain for
+ *       source compatibility; Fluxer event delivery is controlled by the
+ *       session and Fluxer's event filtering facilities.
  */
 void discord_add_intents(struct discord *client, uint64_t code);
 
 /**
- * @brief Unsubscribe from Discord Events
+ * @brief Retain legacy intent configuration without changing Fluxer delivery
  *
  * @param client the client created with discord_from_token()
- * @param code the intents opcode, can be set as bitmask operation
- *        Ex: 1 << 0 | 1 << 1 | 1 << 4
+ * @param code the legacy Discord intent bitmask (not sent to Fluxer)
  */
 void discord_remove_intents(struct discord *client, uint64_t code);
 
