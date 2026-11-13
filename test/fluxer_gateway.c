@@ -36,7 +36,9 @@ struct gateway_server {
     char resume_heartbeat[256];
     char pre_ready_heartbeat[256];
     char ready_heartbeat[256];
+    char requested_heartbeat[256];
     int stage;
+    unsigned requested_opcode;
     int failed;
 };
 
@@ -299,6 +301,15 @@ serve_gateway(struct gateway_server *server)
                                    sizeof(server->ready_heartbeat), &opcode)
                  && opcode == 1;
     if (result) server->stage = 4;
+    if (result)
+        result = send_server_frame(fd, 1, "{\"op\":1,\"d\":null}");
+    if (result)
+        result = read_client_frame(fd, server->requested_heartbeat,
+                                   sizeof(server->requested_heartbeat),
+                                   &server->requested_opcode)
+                 && server->requested_opcode == 1
+                 && strcmp(server->requested_heartbeat,
+                           "{\"op\":1,\"d\":1}") == 0;
     if (result) result = send_server_frame(fd, 1, "{\"op\":11}");
 
     char event[8192];
@@ -450,7 +461,10 @@ gateway_server_open(struct gateway_server *server)
     memset(server->pre_ready_heartbeat, 0,
            sizeof(server->pre_ready_heartbeat));
     memset(server->ready_heartbeat, 0, sizeof(server->ready_heartbeat));
+    memset(server->requested_heartbeat, 0,
+           sizeof(server->requested_heartbeat));
     server->stage = 0;
+    server->requested_opcode = 0;
     server->failed = 0;
     return 0;
 }
@@ -542,6 +556,7 @@ run_gateway_scenario(bool invalid_session)
     idle_deadline = time(NULL) + 5;
     CCORDcode code = discord_run(client);
     ASSERT_EQ(0, pthread_join(thread, NULL));
+    ASSERT_EQ(1, server.requested_opcode);
     ASSERT_EQ(6, server.stage);
     ASSERT_EQ(0, server.failed);
     ASSERT(code == CCORD_OK || code == CCORD_DISCORD_CONNECTION);
@@ -572,6 +587,8 @@ run_gateway_scenario(bool invalid_session)
     ASSERT(strcmp(server.pre_ready_heartbeat, "{\"op\":1,\"d\":null}")
            == 0);
     ASSERT(strcmp(server.ready_heartbeat, "{\"op\":1,\"d\":1}") == 0);
+    ASSERT(strcmp(server.requested_heartbeat, "{\"op\":1,\"d\":1}")
+           == 0);
     ASSERT(strstr(server.http_requests[2], "GET /api-root/v1/gateway/bot ")
            != NULL);
 
