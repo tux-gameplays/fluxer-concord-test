@@ -459,7 +459,7 @@ static bool
 write_config(const char origin[], char path[])
 {
     static const char token[] =
-        "abcdefghijklmnopqrst.abcde.abcdefghijklmnopqrstuvwxy";
+        "123456789012345678.abcdefghijklmnopqrstuvwxyz0123456789ABCD";
     char json[512];
     int size = snprintf(json, sizeof(json),
                         "{\"token\":\"%s\",\"instance_origin\":\"%s\","
@@ -553,8 +553,8 @@ run_gateway_scenario(bool invalid_session)
     ASSERT(strstr(server.resume_websocket_request,
                   "GET /gateway?v=1&encoding=json ") != NULL);
     ASSERT(strstr(server.identify, "\"op\":2") != NULL);
-    ASSERT(strstr(server.identify, "\"token\":\"abcdefghijklmnopqrst.")
-           != NULL);
+    ASSERT(strstr(server.identify,
+                  "\"token\":\"123456789012345678.") != NULL);
     ASSERT(strstr(server.identify, "\"properties\"") != NULL);
     ASSERT(strstr(server.identify, "\"intents\"") == NULL);
     if (invalid_session) {

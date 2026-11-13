@@ -353,28 +353,26 @@ static bool
 _discord_token_is_valid(const char *const token, const size_t len)
 {
     if (!token || !*token) return false;
-
-    // 1. Check overall length (generally 59-72 characters)
-    if (len < 50 || len > 80) return false;
-    // 2. Count the dots (should be exactly 2)
-    int dot_count = 0;
-    for (size_t i = 0; i < len; i++) {
-        if (token[i] == '.') dot_count++;
+    const char *const end = token + len;
+    const char *separator = memchr(token, '.', len);
+    if (!separator || separator == token || separator + 1 == end
+        || memchr(separator + 1, '.',
+                  (size_t)(end - separator - 1)) != NULL)
+    {
+        return false;
     }
-    if (dot_count != 2) return false;
-    // 3. Check for three parts and validate their lengths
-    const char *first_dot = strchr(token, '.');
-    if (!first_dot) return false;
-    const char *second_dot = strchr(first_dot + 1, '.');
-    if (!second_dot) return false;
-    // Calculate lengths of each part
-    const ptrdiff_t first_part_len = first_dot - token,
-                    second_part_len = second_dot - (first_dot + 1),
-                    third_part_len = (ptrdiff_t)len - (second_dot - token) - 1;
-    // Validate part lengths
-    return (first_part_len >= 20 && first_part_len <= 40
-            && second_part_len >= 5 && second_part_len <= 10
-            && third_part_len >= 25 && third_part_len <= 40);
+
+    for (const char *it = token; it < separator; ++it) {
+        if (!isdigit((unsigned char)*it)) return false;
+    }
+    for (const char *it = separator + 1; it < end; ++it) {
+        const bool ascii_alphanumeric =
+            (*it >= 'A' && *it <= 'Z') || (*it >= 'a' && *it <= 'z')
+            || (*it >= '0' && *it <= '9');
+        if (!ascii_alphanumeric && *it != '_' && *it != '-')
+            return false;
+    }
+    return true;
 }
 
 struct discord *

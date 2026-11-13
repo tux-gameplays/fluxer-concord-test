@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #include "fluxer-discovery.h"
 #include "discord.h"
@@ -57,6 +58,8 @@ fixture_server_respond(void *data)
 {
     struct fixture_server *server = data;
     for (unsigned i = 0; i < server->request_count; ++i) {
+        struct pollfd listener = { .fd = server->fd, .events = POLLIN };
+        if (poll(&listener, 1, 1000) <= 0) break;
         int connection = accept(server->fd, NULL, NULL);
         if (connection < 0) break;
 
@@ -219,7 +222,7 @@ json_config_origin_is_used_before_rest_setup(void)
     char config_json[256];
     int config_length = snprintf(
         config_json, sizeof(config_json),
-        "{\"token\":\"abcdefghijklmnopqrst.abcde.abcdefghijklmnopqrstuvwxy\","
+        "{\"token\":\"123456789012345678.abcdefghijklmnopqrstuvwxyz0123456789ABCD\","
         "\"instance_origin\":\"%s\",\"log\":{\"quiet\":true}}",
         origin);
     ASSERT(config_length > 0 && (size_t)config_length < sizeof(config_json));
@@ -237,6 +240,9 @@ json_config_origin_is_used_before_rest_setup(void)
     ASSERT_EQ(0, pthread_join(thread, NULL));
     ASSERT(strstr(server.requests[0], "GET /.well-known/fluxer ") != NULL);
     ASSERT(strstr(server.requests[1], "GET /api-root/v1/users/@me ") != NULL);
+    ASSERT(strstr(server.requests[1],
+                  "Authorization: Bot 123456789012345678.abcdefghijklmnopqrstuvwxyz0123456789ABCD")
+           != NULL);
     ASSERT(strstr(server.requests[0], "Authorization:") == NULL);
     ASSERT(strstr(server.requests[1], "Authorization: Bot ") != NULL);
     unlink(config_path);

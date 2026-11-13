@@ -169,7 +169,7 @@ static bool
 write_config(const char origin[], char path[])
 {
     static const char token[] =
-        "abcdefghijklmnopqrst.abcde.abcdefghijklmnopqrstuvwxy";
+        "123456789012345678.abcdefghijklmnopqrstuvwxyz0123456789ABCD";
     char json[512];
     int length = snprintf(json, sizeof(json),
                           "{\"token\":\"%s\",\"instance_origin\":\"%s\","
