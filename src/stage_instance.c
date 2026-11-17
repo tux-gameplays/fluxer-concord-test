@@ -6,26 +6,15 @@
 #include "discord-internal.h"
 #include "discord-request.h"
 
-/******************************************************************************
- * REST functions
- ******************************************************************************/
-
 CCORDcode
 discord_create_stage_instance(struct discord *client,
                               struct discord_create_stage_instance *params,
                               struct discord_ret_stage_instance *ret)
 {
-    struct discord_attributes attr = { 0 };
-    struct ccord_szbuf body = { 0 };
-    CCORD_EXPECT(client, params != NULL, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, params->channel_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, NOT_EMPTY_STR(params->topic),
-                 CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT_OK(client, discord_create_stage_instance_to_json(
-                                &body.start, &body.size, params));
-    DISCORD_ATTR_INIT(attr, discord_stage_instance, ret, params->reason);
-    return discord_rest_run(&client->rest, &attr, &body, HTTP_POST,
-                            "/stage-instances");
+    (void)params;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -33,11 +22,10 @@ discord_get_stage_instance(struct discord *client,
                            u64snowflake channel_id,
                            struct discord_ret_stage_instance *ret)
 {
-    struct discord_attributes attr = { 0 };
-    CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    DISCORD_ATTR_INIT(attr, discord_stage_instance, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
-                            "/stage-instances/%" PRIu64, channel_id);
+    (void)channel_id;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -46,14 +34,11 @@ discord_modify_stage_instance(struct discord *client,
                               struct discord_modify_stage_instance *params,
                               struct discord_ret_stage_instance *ret)
 {
-    struct discord_attributes attr = { 0 };
-    struct ccord_szbuf body = { 0 };
-    CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT_OK(client, discord_modify_stage_instance_to_json(
-                                &body.start, &body.size, params));
-    DISCORD_ATTR_INIT(attr, discord_stage_instance, ret, params->reason);
-    return discord_rest_run(&client->rest, &attr, &body, HTTP_PATCH,
-                            "/stage-instances/%" PRIu64, channel_id);
+    (void)channel_id;
+    (void)params;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -62,9 +47,9 @@ discord_delete_stage_instance(struct discord *client,
                               struct discord_delete_stage_instance *params,
                               struct discord_ret *ret)
 {
-    struct discord_attributes attr = { 0 };
-    CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    DISCORD_ATTR_BLANK_INIT(attr, ret, params ? params->reason : NULL);
-    return discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
-                            "/stage-instances/%" PRIu64, channel_id);
+    (void)channel_id;
+    (void)params;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }

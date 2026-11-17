@@ -33,13 +33,13 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_create_guild_emoji` | `include/emoji.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_create_guild_from_guild_template` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_create_guild_role` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_create_guild_scheduled_event` | `include/guild_scheduled_event.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_create_guild_scheduled_event` | `include/guild_scheduled_event.h` | unsupported | Fluxer has no guild scheduled-events (`/v1/guilds/{guild_id}/scheduled-events`) API. |
 | `discord_create_guild_template` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_create_interaction_response` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_create_message` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/messages`; verified request/response and large snowflake decoding. |
 | `discord_create_reaction` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_create_stage_instance` | `include/stage_instance.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_create_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_create_stage_instance` | `include/stage_instance.h` | unsupported | Fluxer has no stage-channel or `/v1/stage-instances` API. |
+| `discord_create_webhook` | `include/webhook.h` | supported | `POST /v1/channels/{channel_id}/webhooks` with `name` and optional `avatar`. |
 | `discord_crosspost_message` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_all_reactions` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_all_reactions_for_emoji` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -53,18 +53,18 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_delete_guild_emoji` | `include/emoji.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_guild_integrations` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_guild_role` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_guild_scheduled_event` | `include/guild_scheduled_event.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_delete_guild_scheduled_event` | `include/guild_scheduled_event.h` | unsupported | Fluxer has no guild scheduled-events (`/v1/guilds/{guild_id}/scheduled-events`) API. |
 | `discord_delete_guild_sticker` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_guild_template` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_invite` | `include/invite.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_message` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/messages/{message_id}`. |
 | `discord_delete_original_interaction_response` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_delete_own_reaction` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_stage_instance` | `include/stage_instance.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_delete_stage_instance` | `include/stage_instance.h` | unsupported | Fluxer has no stage-channel or `/v1/stage-instances` API. |
 | `discord_delete_user_reaction` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_webhook_message` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_webhook_with_token` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_delete_webhook` | `include/webhook.h` | supported | `DELETE /v1/webhooks/{webhook_id}`. |
+| `discord_delete_webhook_message` | `include/webhook.h` | supported | `DELETE /v1/webhooks/{webhook_id}/{token}/messages/{message_id}` without `Authorization` header. |
+| `discord_delete_webhook_with_token` | `include/webhook.h` | supported | `DELETE /v1/webhooks/{webhook_id}/{token}` without `Authorization` header. |
 | `discord_disconnect_guild_member` | `include/gateway.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_edit_channel_permissions` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_edit_followup_message` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
@@ -72,8 +72,8 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_edit_guild_application_command` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_edit_message` | `include/channel.h` | supported | `PATCH /v1/channels/{channel_id}/messages/{message_id}`. |
 | `discord_edit_original_interaction_response` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
-| `discord_edit_webhook_message` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_execute_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_edit_webhook_message` | `include/webhook.h` | supported | `PATCH /v1/webhooks/{webhook_id}/{token}/messages/{message_id}` without `Authorization` header; supports optional `?thread_id=`. |
+| `discord_execute_webhook` | `include/webhook.h` | supported | `POST /v1/webhooks/{webhook_id}/{token}` without `Authorization` header; supports `?wait=true`, `?thread_id=`, JSON, and multipart uploads. |
 | `discord_follow_news_channel` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_from_config` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_from_json` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -85,7 +85,7 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_get_channel_invites` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_channel_message` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}/messages/{message_id}`. |
 | `discord_get_channel_messages` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}/messages`. |
-| `discord_get_channel_webhooks` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_get_channel_webhooks` | `include/webhook.h` | supported | `GET /v1/channels/{channel_id}/webhooks`. |
 | `discord_get_current_authorization_information` | `include/oauth2.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_current_bot_application_information` | `include/oauth2.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_current_user` | `include/user.h` | supported | `GET /v1/users/@me`; verified during client initialization. |
@@ -111,14 +111,14 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_get_guild_preview` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_prune_count` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_roles` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_guild_scheduled_event` | `include/guild_scheduled_event.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_guild_scheduled_event_users` | `include/guild_scheduled_event.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_get_guild_scheduled_event` | `include/guild_scheduled_event.h` | unsupported | Fluxer has no guild scheduled-events (`/v1/guilds/{guild_id}/scheduled-events`) API. |
+| `discord_get_guild_scheduled_event_users` | `include/guild_scheduled_event.h` | unsupported | Fluxer has no guild scheduled-events (`/v1/guilds/{guild_id}/scheduled-events`) API. |
 | `discord_get_guild_sticker` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_template` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_templates` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_vanity_url` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_voice_regions` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_guild_webhooks` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_get_guild_webhooks` | `include/webhook.h` | supported | `GET /v1/guilds/{guild_id}/webhooks`. |
 | `discord_get_guild_welcome_screen` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_widget` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_guild_widget_image` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -131,13 +131,13 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_get_pinned_messages` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_reactions` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_self` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_stage_instance` | `include/stage_instance.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_get_stage_instance` | `include/stage_instance.h` | unsupported | Fluxer has no stage-channel or `/v1/stage-instances` API. |
 | `discord_get_sticker` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_user` | `include/user.h` | supported | `GET /v1/users/{user_id}`; verified including Fluxer 429 retry. |
 | `discord_get_user_connections` | `include/user.h` | unsupported | Fluxer's route requires OAuth2 `connections` scope, not a bot token. |
-| `discord_get_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_webhook_message` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_webhook_with_token` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_get_webhook` | `include/webhook.h` | supported | `GET /v1/webhooks/{webhook_id}`. |
+| `discord_get_webhook_message` | `include/webhook.h` | supported | `GET /v1/webhooks/{webhook_id}/{token}/messages/{message_id}` without `Authorization` header. |
+| `discord_get_webhook_with_token` | `include/webhook.h` | supported | `GET /v1/webhooks/{webhook_id}/{token}` without `Authorization` header. |
 | `discord_group_dm_add_recipient` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_group_dm_remove_recipient` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_join_thread` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -146,14 +146,14 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_list_auto_moderation_rules_for_guild` | `include/auto_moderation.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_guild_emojis` | `include/emoji.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_guild_members` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_list_guild_scheduled_events` | `include/guild_scheduled_event.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_list_guild_scheduled_events` | `include/guild_scheduled_event.h` | unsupported | Fluxer has no guild scheduled-events (`/v1/guilds/{guild_id}/scheduled-events`) API. |
 | `discord_list_guild_stickers` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_joined_private_archived_threads` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_nitro_sticker_packs` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_private_archived_threads` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_public_archived_threads` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_thread_members` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_list_voice_regions` | `include/voice.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_list_voice_regions` | `include/voice.h` | unsupported | Fluxer has no global `/v1/voice/regions` route; `GET /v1/channels/{channel_id}/rtc-regions` is channel-scoped and disallows bots. |
 | `discord_modify_auto_moderation_rule` | `include/auto_moderation.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_channel` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_current_member` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -165,15 +165,15 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_modify_guild_member` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_guild_role` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_guild_role_positions` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_modify_guild_scheduled_event` | `include/guild_scheduled_event.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_modify_guild_scheduled_event` | `include/guild_scheduled_event.h` | unsupported | Fluxer has no guild scheduled-events (`/v1/guilds/{guild_id}/scheduled-events`) API. |
 | `discord_modify_guild_sticker` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_guild_template` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_guild_welcome_screen` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_guild_widget` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_modify_stage_instance` | `include/stage_instance.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_modify_stage_instance` | `include/stage_instance.h` | unsupported | Fluxer has no stage-channel or `/v1/stage-instances` API. |
 | `discord_modify_user_voice_state` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_modify_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_modify_webhook_with_token` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_modify_webhook` | `include/webhook.h` | supported | `PATCH /v1/webhooks/{webhook_id}` with optional `name`, `avatar`, and `channel_id`. |
+| `discord_modify_webhook_with_token` | `include/webhook.h` | supported | `PATCH /v1/webhooks/{webhook_id}/{token}` without `Authorization` header. |
 | `discord_overwrite_append` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_pin_message` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_presence_add_activity` | `include/gateway.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
