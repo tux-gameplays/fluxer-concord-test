@@ -1,11 +1,36 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "discord.h"
 #include "discord-internal.h"
 #include "discord-request.h"
-#include "queriec.h"
+
+static CCORDcode
+_audit_query_append(char *query,
+                    size_t query_cap,
+                    size_t *offset,
+                    const char *key,
+                    const char *fmt,
+                    ...)
+{
+    va_list args;
+    char sep = (*offset == 0) ? '?' : '&';
+    int written =
+        snprintf(query + *offset, query_cap - *offset, "%c%s=", sep, key);
+    if (written < 0 || (size_t)written >= query_cap - *offset)
+        return CCORD_MALFORMED_PAYLOAD;
+    *offset += (size_t)written;
+
+    va_start(args, fmt);
+    written = vsnprintf(query + *offset, query_cap - *offset, fmt, args);
+    va_end(args);
+    if (written < 0 || (size_t)written >= query_cap - *offset)
+        return CCORD_MALFORMED_PAYLOAD;
+    *offset += (size_t)written;
+    return CCORD_OK;
+}
 
 CCORDcode
 discord_get_guild_audit_log(struct discord *client,
@@ -14,43 +39,41 @@ discord_get_guild_audit_log(struct discord *client,
                             struct discord_ret_audit_log *ret)
 {
     struct discord_attributes attr = { 0 };
-    struct queriec queriec;
     char query[1024] = "";
+    size_t offset = 0;
+
     CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
-    queriec_init(&queriec, sizeof(query));
     if (params) {
-        int res;
-        char buf[32];
+        CCORDcode code;
         if (params->user_id) {
-            res = queriec_snprintf_add(&queriec, query, "user_id",
-                                       sizeof("user_id"), buf, sizeof(buf),
-                                       "%" PRIu64, params->user_id);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            code = _audit_query_append(query, sizeof(query), &offset,
+                                       "user_id", "%" PRIu64, params->user_id);
+            CCORD_EXPECT(client, code == CCORD_OK, code,
                          "Out of bounds write attempt");
         }
         if (params->action_type) {
-            res = queriec_snprintf_add(&queriec, query, "action_type",
-                                       sizeof("action_type"), buf, sizeof(buf),
-                                       "%d", params->action_type);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            code = _audit_query_append(query, sizeof(query), &offset,
+                                       "action_type", "%d",
+                                       params->action_type);
+            CCORD_EXPECT(client, code == CCORD_OK, code,
                          "Out of bounds write attempt");
         }
         if (params->before) {
-            res = queriec_snprintf_add(&queriec, query, "before",
-                                       sizeof("before"), buf, sizeof(buf),
+            code = _audit_query_append(query, sizeof(query), &offset, "before",
                                        "%" PRIu64, params->before);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            CCORD_EXPECT(client, code == CCORD_OK, code,
+                         "Out of bounds write attempt");
+        }
+        if (params->after) {
+            code = _audit_query_append(query, sizeof(query), &offset, "after",
+                                       "%" PRIu64, params->after);
+            CCORD_EXPECT(client, code == CCORD_OK, code,
                          "Out of bounds write attempt");
         }
         if (params->limit) {
-            res =
-                queriec_snprintf_add(&queriec, query, "limit", sizeof("limit"),
-                                     buf, sizeof(buf), "%d", params->limit);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            code = _audit_query_append(query, sizeof(query), &offset, "limit",
+                                       "%d", params->limit);
+            CCORD_EXPECT(client, code == CCORD_OK, code,
                          "Out of bounds write attempt");
         }
     }

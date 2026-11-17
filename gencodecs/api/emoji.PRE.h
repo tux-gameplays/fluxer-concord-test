@@ -48,14 +48,18 @@ PUB_STRUCT(discord_create_guild_emoji)
     FIELD_PTR(reason, char, *)
 #endif
   /** name of the emoji */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /* TODO: implement base64 encoding */
   /** the 128x128 emoji image */
+  COND_WRITE(self->image != NULL)
     FIELD_PTR(image, char, *)
-  /** roles allowed to use this emoji */
-  COND_WRITE(self->roles != NULL)
-    FIELD_STRUCT_PTR(roles, snowflakes, *)
   COND_END
+  /** roles allowed to use this emoji */
+#if GENCODECS_RECIPE == DATA
+    FIELD_STRUCT_PTR(roles, snowflakes, *)
+#endif
 STRUCT_END
 #endif
 
@@ -67,14 +71,16 @@ PUB_STRUCT(discord_modify_guild_emoji)
     FIELD_PTR(reason, char, *)
 #endif
   /** name of the emoji */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /* TODO: implement base64 encoding */
   /** the 128x128 emoji image */
+#if GENCODECS_RECIPE == DATA
     FIELD_PTR(image, char, *)
   /** roles allowed to use this emoji */
-  COND_WRITE(self->roles != NULL)
     FIELD_STRUCT_PTR(roles, snowflakes, *)
-  COND_END
+#endif
 STRUCT_END
 #endif
 

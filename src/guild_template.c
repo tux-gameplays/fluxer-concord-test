@@ -11,12 +11,10 @@ discord_get_guild_template(struct discord *client,
                            const char template_code[],
                            struct discord_ret_guild_template *ret)
 {
-    struct discord_attributes attr = { 0 };
-    CCORD_EXPECT(client, NOT_EMPTY_STR(template_code), CCORD_BAD_PARAMETER,
-                 "");
-    DISCORD_ATTR_INIT(attr, discord_guild_template, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
-                            "/guilds/templates/%s", template_code);
+    (void)template_code;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -26,15 +24,11 @@ discord_create_guild_from_guild_template(
     struct discord_create_guild_from_guild_template *params,
     struct discord_ret_guild *ret)
 {
-    struct discord_attributes attr = { 0 };
-    struct ccord_szbuf body = { 0 };
-    CCORD_EXPECT(client, NOT_EMPTY_STR(template_code), CCORD_BAD_PARAMETER,
-                 "");
-    CCORD_EXPECT_OK(client, discord_create_guild_from_guild_template_to_json(
-                                &body.start, &body.size, params));
-    DISCORD_ATTR_INIT(attr, discord_guild, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, &body, HTTP_POST,
-                            "/guilds/templates/%s", template_code);
+    (void)template_code;
+    (void)params;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -42,11 +36,10 @@ discord_get_guild_templates(struct discord *client,
                             u64snowflake guild_id,
                             struct discord_ret_guild_templates *ret)
 {
-    struct discord_attributes attr = { 0 };
-    CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
-    DISCORD_ATTR_LIST_INIT(attr, discord_guild_templates, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
-                            "/guilds/%" PRIu64 "/templates", guild_id);
+    (void)guild_id;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -55,14 +48,11 @@ discord_create_guild_template(struct discord *client,
                               struct discord_create_guild_template *params,
                               struct discord_ret_guild_template *ret)
 {
-    struct discord_attributes attr = { 0 };
-    struct ccord_szbuf body = { 0 };
-    CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT_OK(client, discord_create_guild_template_to_json(
-                                &body.start, &body.size, params));
-    DISCORD_ATTR_INIT(attr, discord_guild_template, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, &body, HTTP_POST,
-                            "/guilds/%" PRIu64 "/templates", guild_id);
+    (void)guild_id;
+    (void)params;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -71,14 +61,11 @@ discord_sync_guild_template(struct discord *client,
                             const char template_code[],
                             struct discord_ret_guild_template *ret)
 {
-    struct discord_attributes attr = { 0 };
-    CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, NOT_EMPTY_STR(template_code), CCORD_BAD_PARAMETER,
-                 "");
-    DISCORD_ATTR_INIT(attr, discord_guild_template, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, NULL, HTTP_PUT,
-                            "/guilds/%" PRIu64 "/templates/%s", guild_id,
-                            template_code);
+    (void)guild_id;
+    (void)template_code;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -88,17 +75,12 @@ discord_modify_guild_template(struct discord *client,
                               struct discord_modify_guild_template *params,
                               struct discord_ret_guild_template *ret)
 {
-    struct discord_attributes attr = { 0 };
-    struct ccord_szbuf body = { 0 };
-    CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, NOT_EMPTY_STR(template_code), CCORD_BAD_PARAMETER,
-                 "");
-    CCORD_EXPECT_OK(client, discord_modify_guild_template_to_json(
-                                &body.start, &body.size, params));
-    DISCORD_ATTR_INIT(attr, discord_guild_template, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, &body, HTTP_PATCH,
-                            "/guilds/%" PRIu64 "/templates/%s", guild_id,
-                            template_code);
+    (void)guild_id;
+    (void)template_code;
+    (void)params;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -107,12 +89,9 @@ discord_delete_guild_template(struct discord *client,
                               const char template_code[],
                               struct discord_ret_guild_template *ret)
 {
-    struct discord_attributes attr = { 0 };
-    CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, NOT_EMPTY_STR(template_code), CCORD_BAD_PARAMETER,
-                 "");
-    DISCORD_ATTR_INIT(attr, discord_guild_template, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
-                            "/guilds/%" PRIu64 "/templates/%s", guild_id,
-                            template_code);
+    (void)guild_id;
+    (void)template_code;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }

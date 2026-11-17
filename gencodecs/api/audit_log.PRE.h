@@ -2,6 +2,20 @@
  * Audit Logs Datatypes
  * **************************************************************************/
 
+#ifndef GENCODECS_JSON_DECODER_audit_opt_str
+#define GENCODECS_JSON_DECODER_audit_opt_str(_f, _js, _var, _type)            \
+    if (_f && _f->v->type == JSMN_STRING) {                                   \
+        GENCODECS_JSON_DECODER_PTR_char(_f, _js, _var, _type);                \
+    }                                                                         \
+    else if (_f && _f->v->type == JSMN_PRIMITIVE                              \
+             && _js[_f->v->start] != 'n')                                     \
+    {                                                                         \
+        _var = _gc_strndup(_js + _f->v->start,                                \
+                           (size_t)(_f->v->end - _f->v->start));              \
+        ret += _f->v->end - _f->v->start;                                     \
+    }
+#endif
+
 #if GENCODECS_RECIPE == DATA
 ENUM(discord_audit_log_events)
     ENUMERATOR(DISCORD_AUDIT_LOG_GUILD_UPDATE, = 1)
@@ -107,7 +121,7 @@ STRUCT(discord_audit_log_entry)
   COND_END
   /** additional info for certain action types */
   COND_WRITE(self->options != NULL)
-    FIELD_STRUCT_PTR(options, discord_optional_audit_entry_infos, *)
+    FIELD_STRUCT_PTR(options, discord_optional_audit_entry_info, *)
   COND_END
   /** the reason for the change (0-512) characters */
     FIELD_PTR(reason, char, *)
@@ -125,19 +139,27 @@ STRUCT(discord_optional_audit_entry_info)
   /** channel in which the entities were targeted */
     FIELD_SNOWFLAKE(channel_id)
   /** number of entities that were targeted */
-    FIELD_PTR(count, char, *)
+    FIELD_CUSTOM(count, "count", char, *, INIT_BLANK, CLEANUP_PTR,
+                 GENCODECS_JSON_ENCODER_PTR_char,
+                 GENCODECS_JSON_DECODER_audit_opt_str, NULL)
   /** number of days after which inactive members were kicked */
-    FIELD_PTR(delete_member_days, char, *)
+    FIELD_CUSTOM(delete_member_days, "delete_member_days", char, *, INIT_BLANK,
+                 CLEANUP_PTR, GENCODECS_JSON_ENCODER_PTR_char,
+                 GENCODECS_JSON_DECODER_audit_opt_str, NULL)
   /** id of the overwritten entity */
     FIELD_SNOWFLAKE(id)
   /** number of members removed by prune */
-    FIELD_PTR(members_removed, char, *)
+    FIELD_CUSTOM(members_removed, "members_removed", char, *, INIT_BLANK,
+                 CLEANUP_PTR, GENCODECS_JSON_ENCODER_PTR_char,
+                 GENCODECS_JSON_DECODER_audit_opt_str, NULL)
   /** ID of the message that was targeted */
     FIELD_SNOWFLAKE(message_id)
   /** name of the role if type is \"0\" (not present if type is \"1\" */
     FIELD_PTR(role_name, char, *)
   /** type of overwritten entity - 0 for role or 1 for \"member\" */
-    FIELD_PTR(type, char, *)
+    FIELD_CUSTOM(type, "type", char, *, INIT_BLANK, CLEANUP_PTR,
+                 GENCODECS_JSON_ENCODER_PTR_char,
+                 GENCODECS_JSON_DECODER_audit_opt_str, NULL)
 STRUCT_END
 #endif
 
@@ -176,6 +198,8 @@ STRUCT(discord_get_guild_audit_log)
     FIELD(action_type, int, 0)
   /** filter the log before a certain entry ID */
     FIELD_SNOWFLAKE(before)
+  /** filter the log after a certain entry ID */
+    FIELD_SNOWFLAKE(after)
   /** how many entries are returned (default 50, minimum 1, maximum 100) */
   COND_WRITE(self->limit >= 1 && self->limit <= 100)
     FIELD(limit, int, 50)
