@@ -5,6 +5,23 @@
 #include "discord.h"
 #include "discord-internal.h"
 
+static long
+_discord_typing_start_from_jsmnf_fluxer(const jsmnf_pair *root,
+                                        const char *js,
+                                        void *p_data)
+{
+    struct discord_typing_start *data = p_data;
+    long ret = discord_typing_start_from_jsmnf(root, js, data);
+    if (root && !data->timestamp) {
+        const jsmnf_pair *f = jsmnf_find((jsmnf_pair *)root, "timestamp", 9);
+        if (f && f->v && f->v->type == JSMN_PRIMITIVE) {
+            uint64_t ts = strtoull(js + f->v->start, NULL, 10);
+            data->timestamp = ts < UINT64_C(10000000000) ? ts * 1000 : ts;
+        }
+    }
+    return ret;
+}
+
 #define INIT(type)                                                            \
     {                                                                         \
         sizeof(struct type),                                                  \
@@ -13,7 +30,7 @@
             (void (*)(void *))type##_cleanup                                  \
     }
 
-/** @brief Information for deserializing a Discord event */
+/** @brief Information for deserializing a Fluxer Gateway dispatch event */
 static const struct {
     /** size of event's datatype */
     size_t size;
@@ -90,7 +107,12 @@ static const struct {
     [DISCORD_EV_STAGE_INSTANCE_CREATE] = INIT(discord_stage_instance),
     [DISCORD_EV_STAGE_INSTANCE_UPDATE] = INIT(discord_stage_instance),
     [DISCORD_EV_STAGE_INSTANCE_DELETE] = INIT(discord_stage_instance),
-    [DISCORD_EV_TYPING_START] = INIT(discord_typing_start),
+    [DISCORD_EV_TYPING_START] =
+        {
+            sizeof(struct discord_typing_start),
+            _discord_typing_start_from_jsmnf_fluxer,
+            (void (*)(void *))discord_typing_start_cleanup,
+        },
     [DISCORD_EV_USER_UPDATE] = INIT(discord_user),
     [DISCORD_EV_VOICE_STATE_UPDATE] = INIT(discord_voice_state),
     [DISCORD_EV_VOICE_SERVER_UPDATE] = INIT(discord_voice_server_update),
@@ -112,7 +134,10 @@ discord_gateway_dispatch(struct discord_gateway *gw)
         }
     /* fall-through */
     default:
-        if (gw->cbs[0][event] || gw->cbs[1][event]) {
+        if (event < sizeof(dispatch) / sizeof(*dispatch)
+            && dispatch[event].from_jsmnf
+            && (gw->cbs[0][event] || gw->cbs[1][event]))
+        {
             void *event_data = calloc(1, dispatch[event].size);
 
             dispatch[event].from_jsmnf(gw->payload.data,
@@ -314,7 +339,11 @@ discord_gateway_send_request_guild_members(
     struct discord_gateway *gw, struct discord_request_guild_members *event)
 {
     struct ccord_szbuf body = { 0 };
+    char id_buf[32];
+    int id_len;
     jsonb b;
+
+    if (!gw || !event || !event->guild_id) return;
 
     jsonb_init(&b);
     jsonb_object_auto(&b, &body.start, &body.size);
@@ -322,8 +351,54 @@ discord_gateway_send_request_guild_members(
         jsonb_key_auto(&b, &body.start, &body.size, "op", 2);
         jsonb_number_auto(&b, &body.start, &body.size, 8);
         jsonb_key_auto(&b, &body.start, &body.size, "d", 1);
-        discord_request_guild_members_to_jsonb(&b, &body.start, &body.size,
-                                               event);
+        jsonb_object_auto(&b, &body.start, &body.size);
+        {
+            jsonb_key_auto(&b, &body.start, &body.size, "guild_id", 8);
+            id_len = snprintf(id_buf, sizeof(id_buf), "%" PRIu64,
+                              event->guild_id);
+            jsonb_string_auto(&b, &body.start, &body.size, id_buf,
+                              (size_t)id_len);
+
+            if (event->user_ids) {
+                jsonb_key_auto(&b, &body.start, &body.size, "user_ids", 8);
+                jsonb_array_auto(&b, &body.start, &body.size);
+                for (int i = 0; i < event->user_ids->size; ++i) {
+                    id_len = snprintf(id_buf, sizeof(id_buf), "%" PRIu64,
+                                      event->user_ids->array[i]);
+                    jsonb_string_auto(&b, &body.start, &body.size, id_buf,
+                                      (size_t)id_len);
+                }
+                jsonb_array_pop_auto(&b, &body.start, &body.size);
+                if (event->query) {
+                    jsonb_key_auto(&b, &body.start, &body.size, "query", 5);
+                    jsonb_string_auto(&b, &body.start, &body.size,
+                                      event->query, strlen(event->query));
+                }
+                if (event->limit > 0) {
+                    jsonb_key_auto(&b, &body.start, &body.size, "limit", 5);
+                    jsonb_number_auto(&b, &body.start, &body.size,
+                                      event->limit);
+                }
+            }
+            else {
+                const char *query = event->query ? event->query : "";
+                jsonb_key_auto(&b, &body.start, &body.size, "query", 5);
+                jsonb_string_auto(&b, &body.start, &body.size, query,
+                                  strlen(query));
+                jsonb_key_auto(&b, &body.start, &body.size, "limit", 5);
+                jsonb_number_auto(&b, &body.start, &body.size, event->limit);
+            }
+
+            jsonb_key_auto(&b, &body.start, &body.size, "presences", 9);
+            jsonb_bool_auto(&b, &body.start, &body.size, event->presences);
+
+            if (event->nonce) {
+                jsonb_key_auto(&b, &body.start, &body.size, "nonce", 5);
+                jsonb_string_auto(&b, &body.start, &body.size, event->nonce,
+                                  strlen(event->nonce));
+            }
+        }
+        jsonb_object_pop_auto(&b, &body.start, &body.size);
         jsonb_object_pop_auto(&b, &body.start, &body.size);
     }
 
@@ -345,7 +420,11 @@ discord_gateway_send_update_voice_state(
     struct discord_gateway *gw, struct discord_update_voice_state *event)
 {
     struct ccord_szbuf body = { 0 };
+    char id_buf[32];
+    int id_len;
     jsonb b;
+
+    if (!gw || !event) return;
 
     jsonb_init(&b);
     jsonb_object_auto(&b, &body.start, &body.size);
@@ -353,8 +432,36 @@ discord_gateway_send_update_voice_state(
         jsonb_key_auto(&b, &body.start, &body.size, "op", 2);
         jsonb_number_auto(&b, &body.start, &body.size, 4);
         jsonb_key_auto(&b, &body.start, &body.size, "d", 1);
-        discord_update_voice_state_to_jsonb(&b, &body.start, &body.size,
-                                            event);
+        jsonb_object_auto(&b, &body.start, &body.size);
+        {
+            jsonb_key_auto(&b, &body.start, &body.size, "guild_id", 8);
+            if (event->guild_id) {
+                id_len = snprintf(id_buf, sizeof(id_buf), "%" PRIu64,
+                                  event->guild_id);
+                jsonb_string_auto(&b, &body.start, &body.size, id_buf,
+                                  (size_t)id_len);
+            }
+            else {
+                jsonb_null_auto(&b, &body.start, &body.size);
+            }
+
+            jsonb_key_auto(&b, &body.start, &body.size, "channel_id", 10);
+            if (event->channel_id) {
+                id_len = snprintf(id_buf, sizeof(id_buf), "%" PRIu64,
+                                  event->channel_id);
+                jsonb_string_auto(&b, &body.start, &body.size, id_buf,
+                                  (size_t)id_len);
+            }
+            else {
+                jsonb_null_auto(&b, &body.start, &body.size);
+            }
+
+            jsonb_key_auto(&b, &body.start, &body.size, "self_mute", 9);
+            jsonb_bool_auto(&b, &body.start, &body.size, event->self_mute);
+            jsonb_key_auto(&b, &body.start, &body.size, "self_deaf", 9);
+            jsonb_bool_auto(&b, &body.start, &body.size, event->self_deaf);
+        }
+        jsonb_object_pop_auto(&b, &body.start, &body.size);
         jsonb_object_pop_auto(&b, &body.start, &body.size);
     }
 
@@ -379,18 +486,85 @@ discord_gateway_send_presence_update(struct discord_gateway *gw,
                                      struct discord_presence_update *presence)
 {
     struct ccord_szbuf body = { 0 };
+    char num_buf[32];
+    int num_len;
     jsonb b;
 
-    if (!gw->session->is_ready) return;
+    if (!gw || !presence || !gw->session || !gw->session->is_ready) return;
 
     jsonb_init(&b);
     jsonb_object_auto(&b, &body.start, &body.size);
     {
+        const char *status =
+            (presence->status && *presence->status) ? presence->status : "online";
+
         jsonb_key_auto(&b, &body.start, &body.size, "op", 2);
         jsonb_number_auto(&b, &body.start, &body.size, 3);
         jsonb_key_auto(&b, &body.start, &body.size, "d", 1);
-        discord_presence_update_to_jsonb(&b, &body.start, &body.size,
-                                         presence);
+        jsonb_object_auto(&b, &body.start, &body.size);
+        {
+            jsonb_key_auto(&b, &body.start, &body.size, "since", 5);
+            if (presence->since > 0) {
+                num_len = snprintf(num_buf, sizeof(num_buf), "%" PRIu64,
+                                   presence->since);
+                jsonb_token_auto(&b, &body.start, &body.size, num_buf,
+                                 (size_t)num_len);
+            }
+            else {
+                jsonb_null_auto(&b, &body.start, &body.size);
+            }
+
+            jsonb_key_auto(&b, &body.start, &body.size, "activities", 10);
+            jsonb_array_auto(&b, &body.start, &body.size);
+            if (presence->activities) {
+                for (int i = 0; i < presence->activities->size; ++i) {
+                    const struct discord_activity *act =
+                        &presence->activities->array[i];
+                    const char *name = act->name ? act->name : "";
+                    jsonb_object_auto(&b, &body.start, &body.size);
+                    jsonb_key_auto(&b, &body.start, &body.size, "name", 4);
+                    jsonb_string_auto(&b, &body.start, &body.size, name,
+                                      strlen(name));
+                    jsonb_key_auto(&b, &body.start, &body.size, "type", 4);
+                    jsonb_number_auto(&b, &body.start, &body.size,
+                                      (int)act->type);
+                    if (act->url && *act->url) {
+                        jsonb_key_auto(&b, &body.start, &body.size, "url", 3);
+                        jsonb_string_auto(&b, &body.start, &body.size,
+                                          act->url, strlen(act->url));
+                    }
+                    if (act->details && *act->details) {
+                        jsonb_key_auto(&b, &body.start, &body.size, "details",
+                                       7);
+                        jsonb_string_auto(&b, &body.start, &body.size,
+                                          act->details, strlen(act->details));
+                    }
+                    if (act->state && *act->state) {
+                        jsonb_key_auto(&b, &body.start, &body.size, "state",
+                                       5);
+                        jsonb_string_auto(&b, &body.start, &body.size,
+                                          act->state, strlen(act->state));
+                    }
+                    if (act->application_id) {
+                        num_len = snprintf(num_buf, sizeof(num_buf),
+                                           "%" PRIu64, act->application_id);
+                        jsonb_key_auto(&b, &body.start, &body.size,
+                                       "application_id", 14);
+                        jsonb_string_auto(&b, &body.start, &body.size, num_buf,
+                                          (size_t)num_len);
+                    }
+                    jsonb_object_pop_auto(&b, &body.start, &body.size);
+                }
+            }
+            jsonb_array_pop_auto(&b, &body.start, &body.size);
+
+            jsonb_key_auto(&b, &body.start, &body.size, "status", 6);
+            jsonb_string_auto(&b, &body.start, &body.size, status,
+                              strlen(status));
+            jsonb_key_auto(&b, &body.start, &body.size, "afk", 3);
+            jsonb_bool_auto(&b, &body.start, &body.size, presence->afk);
+        }
+        jsonb_object_pop_auto(&b, &body.start, &body.size);
         jsonb_object_pop_auto(&b, &body.start, &body.size);
     }
 

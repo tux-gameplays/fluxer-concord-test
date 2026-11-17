@@ -6,11 +6,12 @@ INCLUDE_DIR   = $(TOP)/include
 GENCODECS_DIR = $(TOP)/gencodecs
 
 TEST_DISCORD = racecond rest timeout
-TEST_CORE    = websockets queriec fluxer_compatibility fluxer_discovery fluxer_rest fluxer_gateway fluxer_guild fluxer_mod_assets fluxer_channel fluxer_webhooks_voice
+TEST_CORE    = websockets queriec fluxer_compatibility fluxer_discovery fluxer_rest fluxer_gateway fluxer_guild fluxer_mod_assets fluxer_channel fluxer_webhooks_voice fluxer_core_events
 
 TESTS = $(TEST_DISCORD) $(TEST_GITHUB) $(TEST_CORE)
 
 fluxer_gateway: LDLIBS += -lcrypto
+fluxer_core_events: LDLIBS += -lcrypto
 
 CFLAGS  = -O0 -g -pthread -Wall \
           -I$(INCLUDE_DIR) -I$(CORE_DIR) -I$(GENCODECS_DIR)

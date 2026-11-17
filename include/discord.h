@@ -270,6 +270,18 @@ struct discord_config {
 struct discord *discord_from_config(const struct discord_config *config);
 
 /**
+ * @brief Override the Fluxer instance origin and refresh service discovery
+ * @note Must be called before discord_run() while no Gateway session is active
+ *
+ * @param client the client created with discord_from_token(),
+ *        discord_from_json(), or discord_from_config()
+ * @param origin HTTP(S) origin of the Fluxer instance
+ * @CCORD_return
+ */
+CCORDcode discord_set_instance_origin(struct discord *client,
+                                      const char origin[]);
+
+/**
  * @brief Backwards compatible alias for discord_from_token()
  * @deprecated since v3.0.0
  */
