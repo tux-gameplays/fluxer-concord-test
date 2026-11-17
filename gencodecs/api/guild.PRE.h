@@ -146,7 +146,7 @@ PUB_STRUCT(discord_guild)
        boost events are posted */
     FIELD_SNOWFLAKE(system_channel_id)
   /** @ref DiscordAPIGuildSystemChannelFlags */
-    FIELD_BITMASK(system_channel_flags)
+    FIELD_PRINTF(system_channel_flags, u64bitmask, "%" PRIu64, "%" SCNu64)
   /** the id of the channel where Community guilds can display rules and/or
        guidelines */
     FIELD_SNOWFLAKE(rules_channel_id)
@@ -336,7 +336,9 @@ PUB_STRUCT(discord_guild_member)
   /** whether the user is deafened in voice channels */
     FIELD(deaf, bool, false)
   /** whether the user is muted in voice channels */
-    FIELD(muted, bool, false)
+    FIELD_CUSTOM(muted, "mute", bool, DECOR_BLANK, INIT_BLANK, CLEANUP_BLANK,
+                 GENCODECS_JSON_ENCODER_bool, GENCODECS_JSON_DECODER_bool,
+                 false)
   /** whether the user has not yet passed the guild's Membership Screening
        requirements */
     FIELD(pending, bool, false)
@@ -537,7 +539,7 @@ PUB_STRUCT(discord_create_guild)
        boost events are posted */
     FIELD_SNOWFLAKE(system_channel_id)
   /** @ref DiscordAPIGuildSystemChannelFlags */
-    FIELD_BITMASK(system_channel_flags)
+    FIELD_PRINTF(system_channel_flags, u64bitmask, "%" PRIu64, "%" SCNu64)
 STRUCT_END
 #endif
 
@@ -549,51 +551,89 @@ PUB_STRUCT(discord_modify_guild)
     FIELD_PTR(reason, char, *)
 #endif
   /** guild name */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /** verification level */
+  COND_WRITE(self->verification_level != 0)
     FIELD_ENUM(verification_level, discord_verification_level)
+  COND_END
   /** default message notification level */
+  COND_WRITE(self->default_message_notifications != 0)
     FIELD_ENUM(default_message_notifications, discord_message_notification_level)
+  COND_END
   /** explicit content filter level */
+  COND_WRITE(self->explicit_content_filter != 0)
     FIELD_ENUM(explicit_content_filter, discord_explicit_content_filter_level)
+  COND_END
   /** ID for afk channel */
+  COND_WRITE(self->afk_channel_id != 0)
     FIELD_SNOWFLAKE(afk_channel_id)
+  COND_END
   /** afk timeout in seconds */
+  COND_WRITE(self->afk_timeout != 0)
     FIELD(afk_timeout, int, 0)
+  COND_END
   /** base64 1024x1024 png/jpeg/gif image for the guild icon (can be
        animated gif when the server has the `ANIMATED_ICON` feature) */
+  COND_WRITE(self->icon != NULL)
     FIELD_PTR(icon, char, *)
+  COND_END
   /** user ID to transfer guild ownership to (must be owner) */
+  COND_WRITE(self->owner_id != 0)
     FIELD_SNOWFLAKE(owner_id)
+  COND_END
   /** base64 1024x1024 png/jpeg/gif image for the guild splash (can be
        animated gif when the server has the `INVITE_SPLASH` feature) */
+  COND_WRITE(self->splash != NULL)
     FIELD_PTR(splash, char, *)
+  COND_END
   /** base64 1024x1024 png/jpeg/gif image for the guild discovery splash
        (can be animated gif when the server has the `DISCOVERABLE` feature) */
+  COND_WRITE(self->discovery_splash != NULL)
     FIELD_PTR(discovery_splash, char, *)
+  COND_END
   /** base64 1024x1024 png/jpeg/gif image for the guild banner (can be
        animated gif when the server has the `BANNER` feature) */
+  COND_WRITE(self->banner != NULL)
     FIELD_PTR(banner, char, *)
+  COND_END
   /** the ID of the channel when guild notices such as welcome messages and
        boost events are posted */
+  COND_WRITE(self->system_channel_id != 0)
     FIELD_SNOWFLAKE(system_channel_id)
+  COND_END
   /** @ref DiscordAPIGuildSystemChannelFlags */
-    FIELD_BITMASK(system_channel_flags)
+  COND_WRITE(self->system_channel_flags != 0)
+    FIELD_PRINTF(system_channel_flags, u64bitmask, "%" PRIu64, "%" SCNu64)
+  COND_END
   /** the ID of the channel where Community guilds display rules and/or
        guidelines */
+  COND_WRITE(self->rules_channel_id != 0)
     FIELD_SNOWFLAKE(rules_channel_id)
+  COND_END
   /** the ID of the channel where admins and moderators of Community guild
        receive notices from Discord */
+  COND_WRITE(self->public_updates_channel_id != 0)
     FIELD_SNOWFLAKE(public_updates_channel_id)
+  COND_END
   /** the preferred locale of a Community guild used in a server discovery
        and notices from Discord; defaults to \"en-US\" */
+  COND_WRITE(self->preferred_locale != NULL)
     FIELD_PTR(preferred_locale, char, *)
+  COND_END
   /** enabled guild features */
+  COND_WRITE(self->features != NULL)
     FIELD_STRUCT_PTR(features, strings, *)
+  COND_END
   /** the description for the guild, if the guild is discoverable */
+  COND_WRITE(self->description != NULL)
     FIELD_PTR(description, char, *)
+  COND_END
   /** whether the guild's boost progress bar should be enabled */
+  COND_WRITE(self->premium_progress_bar_enabled)
     FIELD(premium_progress_bar_enabled, bool, false)
+  COND_END
 STRUCT_END
 #endif
 
@@ -605,11 +645,15 @@ PUB_STRUCT(discord_create_guild_channel)
     FIELD_PTR(reason, char, *)
 #endif
   /** channel name (1-100 characters) */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /** the type of channel */
     FIELD_ENUM(type, discord_channel_types)
   /** channel topic (0-1024 characters) */
+  COND_WRITE(self->topic != NULL)
     FIELD_PTR(topic, char, *)
+  COND_END
   /** the bitrate (in bits) of the voice channel (voice only) */
   COND_WRITE(self->bitrate != 0)
     FIELD(bitrate, int, 0)
@@ -621,17 +665,25 @@ PUB_STRUCT(discord_create_guild_channel)
   /** amount of seconds a user has to wait before sending another message
        (0-21600); bots, as well as users with the permission
        `MANAGE_MESSAGES` or `MANAGE_CHANNEL`, are unaffected */
+  COND_WRITE(self->rate_limit_per_user != 0)
     FIELD(rate_limit_per_user, int, 0)
+  COND_END
   /** sorting position of the channel */
+  COND_WRITE(self->position != 0)
     FIELD(position, int, 0)
+  COND_END
   /** the channel's permission overwrites */
+  COND_WRITE(self->permission_overwrites != NULL)
     FIELD_STRUCT_PTR(permission_overwrites, discord_overwrites, *)
+  COND_END
   /** ID of the parent category for a channel */
   COND_WRITE(self->parent_id != 0)
     FIELD_SNOWFLAKE(parent_id)
   COND_END
   /** whether the channel is nsfw */
+  COND_WRITE(self->nsfw)
     FIELD(nsfw, bool, false)
+  COND_END
 STRUCT_END
 #endif
 
@@ -645,7 +697,11 @@ STRUCT(discord_modify_guild_channel_position)
   COND_END
   /** syncs the permission overwrites with the new parent, if moving to a new
        category */
-    FIELD(lock_category, bool, false)
+  COND_WRITE(self->lock_category)
+    FIELD_CUSTOM(lock_category, "lock_permissions", bool, DECOR_BLANK,
+                 INIT_BLANK, CLEANUP_BLANK, GENCODECS_JSON_ENCODER_bool,
+                 GENCODECS_JSON_DECODER_bool, false)
+  COND_END
   /** the new parent ID for the channel that is moved */
   COND_WRITE(self->parent_id != 0)
     FIELD_SNOWFLAKE(parent_id)
@@ -723,12 +779,12 @@ PUB_STRUCT(discord_modify_guild_member)
   COND_END
   /** whether the user is muted in voice channels. will return a
        @ref CCORD_HTTP_ERROR (400) if the user is not in a voice channel */
-  COND_WRITE(self->channel_id != 0)
+  COND_WRITE(self->channel_id != 0 || self->mute)
     FIELD(mute, bool, false)
   COND_END
   /** whether the user is deafened in voice channels. will return a
        @ref CCORD_HTTP_ERROR (400) if the user is not in a voice channel */
-  COND_WRITE(self->channel_id != 0)
+  COND_WRITE(self->channel_id != 0 || self->deaf)
     FIELD(deaf, bool, false)
   COND_END
   /** ID of channel to move user to (if they are connect to voice) */
@@ -828,20 +884,34 @@ PUB_STRUCT(discord_create_guild_role)
     FIELD_PTR(reason, char, *)
 #endif
   /** name of the role */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /** `@everyone` permissions in guild */
+  COND_WRITE(self->permissions != 0)
     FIELD_BITMASK(permissions)
+  COND_END
   /** RGB color value */
+  COND_WRITE(self->color != 0)
     FIELD(color, int, 0)
+  COND_END
   /** whether the role should be displayed separately in the sidebar */
+  COND_WRITE(self->hoist)
     FIELD(hoist, bool, false)
+  COND_END
   /** the role's icon image (if the guild has the `ROLE_ICONS` feature) */
+  COND_WRITE(self->icon != NULL)
     FIELD_PTR(icon, char, *)
+  COND_END
   /** the role's unicode emoji as a standard emoji (if the guild has the
        `ROLE_ICONS` feature) */
+  COND_WRITE(self->unicode_emoji != NULL)
     FIELD_PTR(unicode_emoji, char, *)
+  COND_END
   /** whether the role should be mentionable */
+  COND_WRITE(self->mentionable)
     FIELD(mentionable, bool, false)
+  COND_END
 STRUCT_END
 #endif
 
@@ -872,20 +942,34 @@ PUB_STRUCT(discord_modify_guild_role)
     FIELD_PTR(reason, char, *)
 #endif
   /** name of the role */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /** bitwise value of the enabled/disabled permissions */
+  COND_WRITE(self->permissions != 0)
     FIELD_BITMASK(permissions)
+  COND_END
   /** RGB color value */
+  COND_WRITE(self->color != 0)
     FIELD(color, int, 0)
+  COND_END
   /** whether the role should be displayed separately in the sidebar */
+  COND_WRITE(self->hoist)
     FIELD(hoist, bool, false)
+  COND_END
   /** the role's icon image (if the guild has the `ROLE_ICONS` feature) */
+  COND_WRITE(self->icon != NULL)
     FIELD_PTR(icon, char, *)
+  COND_END
   /** the role's unicode emoji as a standard emoji (if the guild has the
        `ROLE_ICONS` feature) */
+  COND_WRITE(self->unicode_emoji != NULL)
     FIELD_PTR(unicode_emoji, char, *)
+  COND_END
   /** whether the role should be mentionable */
+  COND_WRITE(self->mentionable)
     FIELD(mentionable, bool, false)
+  COND_END
 STRUCT_END
 #endif
 
