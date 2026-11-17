@@ -7,9 +7,9 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_add_guild_member` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_add_guild_member_role` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_add_intents` | `include/discord-events.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_add_thread_member` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_add_thread_member` | `include/channel.h` | supported | `PUT /v1/channels/{channel_id}/thread-members/{user_id}`. |
 | `discord_begin_guild_prune` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_bulk_delete_messages` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_bulk_delete_messages` | `include/channel.h` | adapted | `POST /v1/channels/{channel_id}/messages/bulk-delete`; accepts 1–100 message IDs of any age without Discord's 14-day snowflake limit. |
 | `discord_bulk_overwrite_global_application_commands` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_bulk_overwrite_guild_application_commands` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_cache_enable` | `include/discord-cache.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -21,7 +21,7 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_code_as_string` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_config_get_field` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_create_auto_moderation_rule` | `include/auto_moderation.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_create_channel_invite` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_create_channel_invite` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/invites`. |
 | `discord_create_dm` | `include/user.h` | supported | `POST /v1/users/@me/channels` with `recipient_id`. |
 | `discord_create_followup_message` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_create_global_application_command` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
@@ -37,15 +37,15 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_create_guild_template` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_create_interaction_response` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_create_message` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/messages`; verified request/response and large snowflake decoding. |
-| `discord_create_reaction` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_create_reaction` | `include/channel.h` | supported | `PUT /v1/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me`. |
 | `discord_create_stage_instance` | `include/stage_instance.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_create_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_crosspost_message` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_all_reactions` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_all_reactions_for_emoji` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_crosspost_message` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/messages/{message_id}/crosspost`. |
+| `discord_delete_all_reactions` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/messages/{message_id}/reactions`. |
+| `discord_delete_all_reactions_for_emoji` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/messages/{message_id}/reactions/{emoji}`. |
 | `discord_delete_auto_moderation_rule` | `include/auto_moderation.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_channel` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_channel_permission` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_delete_channel` | `include/channel.h` | adapted | `DELETE /v1/channels/{channel_id}`; Fluxer returns `204 No Content`, leaving an initialized empty `discord_channel` on completion. |
+| `discord_delete_channel_permission` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/permissions/{overwrite_id}`. |
 | `discord_delete_followup_message` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_delete_global_application_command` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_delete_guild` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -59,14 +59,14 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_delete_invite` | `include/invite.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_message` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/messages/{message_id}`. |
 | `discord_delete_original_interaction_response` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
-| `discord_delete_own_reaction` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_delete_own_reaction` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me`. |
 | `discord_delete_stage_instance` | `include/stage_instance.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_delete_user_reaction` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_delete_user_reaction` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/{user_id}`. |
 | `discord_delete_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_webhook_message` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_delete_webhook_with_token` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_disconnect_guild_member` | `include/gateway.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_edit_channel_permissions` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_edit_channel_permissions` | `include/channel.h` | supported | `PUT /v1/channels/{channel_id}/permissions/{overwrite_id}`. |
 | `discord_edit_followup_message` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_edit_global_application_command` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_edit_guild_application_command` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
@@ -74,15 +74,15 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_edit_original_interaction_response` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_edit_webhook_message` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_execute_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_follow_news_channel` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_follow_news_channel` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/followers`. |
 | `discord_from_config` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_from_json` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_from_token` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_application_command_permissions` | `include/application_command.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_get_auto_moderation_rule` | `include/auto_moderation.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_channel` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_channel_at_pos` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_channel_invites` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_get_channel` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}`. |
+| `discord_get_channel_at_pos` | `include/channel.h` | supported | Helper over `GET /v1/guilds/{guild_id}/channels` selecting the Nth channel of `type`. |
+| `discord_get_channel_invites` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}/invites`. |
 | `discord_get_channel_message` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}/messages/{message_id}`. |
 | `discord_get_channel_messages` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}/messages`. |
 | `discord_get_channel_webhooks` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -128,8 +128,8 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_get_logmod` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_original_interaction_response` | `include/interaction.h` | unsupported | Fluxer currently has no compatible slash-command/interaction protocol. |
 | `discord_get_ping` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_pinned_messages` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_get_reactions` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_get_pinned_messages` | `include/channel.h` | adapted | `GET /v1/channels/{channel_id}/messages/pins`; unwraps Fluxer's `{items:[{message,pinned_at}],has_more}` page into `discord_messages`. |
+| `discord_get_reactions` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}/messages/{message_id}/reactions/{emoji}`. |
 | `discord_get_self` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_stage_instance` | `include/stage_instance.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_sticker` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -138,24 +138,24 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_get_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_webhook_message` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_get_webhook_with_token` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_group_dm_add_recipient` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_group_dm_remove_recipient` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_join_thread` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_group_dm_add_recipient` | `include/channel.h` | unsupported | Concord's OAuth2 `gdm.join` access-token/nickname payload has no Fluxer equivalent, and Fluxer's recipient addition requires user friendship unavailable to bots. |
+| `discord_group_dm_remove_recipient` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/recipients/{user_id}`. |
+| `discord_join_thread` | `include/channel.h` | supported | `PUT /v1/channels/{channel_id}/thread-members/@me`. |
 | `discord_leave_guild` | `include/user.h` | supported | `DELETE /v1/users/@me/guilds/{guild_id}`. |
-| `discord_leave_thread` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_leave_thread` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/thread-members/@me`. |
 | `discord_list_auto_moderation_rules_for_guild` | `include/auto_moderation.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_guild_emojis` | `include/emoji.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_guild_members` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_guild_scheduled_events` | `include/guild_scheduled_event.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_list_guild_stickers` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_list_joined_private_archived_threads` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_list_joined_private_archived_threads` | `include/channel.h` | adapted | `GET /v1/channels/{channel_id}/users/@me/threads/archived/private`; `before` encodes as a decimal thread snowflake cursor. |
 | `discord_list_nitro_sticker_packs` | `include/sticker.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_list_private_archived_threads` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_list_public_archived_threads` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_list_thread_members` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_list_private_archived_threads` | `include/channel.h` | adapted | `GET /v1/channels/{channel_id}/threads/archived/private`; encodes `before` (`u64unix_ms`) as an ISO8601 timestamp query parameter. |
+| `discord_list_public_archived_threads` | `include/channel.h` | adapted | `GET /v1/channels/{channel_id}/threads/archived/public`; encodes `before` (`u64unix_ms`) as an ISO8601 timestamp query parameter. |
+| `discord_list_thread_members` | `include/channel.h` | supported | `GET /v1/channels/{channel_id}/thread-members`. |
 | `discord_list_voice_regions` | `include/voice.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_auto_moderation_rule` | `include/auto_moderation.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_modify_channel` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_modify_channel` | `include/channel.h` | supported | `PATCH /v1/channels/{channel_id}`. |
 | `discord_modify_current_member` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_current_user` | `include/user.h` | unsupported | Fluxer bot profile updates require an application-scoped route/credentials absent from this Concord API. |
 | `discord_modify_current_user_voice_state` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -174,15 +174,15 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_modify_user_voice_state` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_webhook` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_modify_webhook_with_token` | `include/webhook.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_overwrite_append` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_pin_message` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_overwrite_append` | `include/channel.h` | supported | Local helper appending a role/member permission overwrite (`id`, `type`, `allow`, `deny`) in memory. |
+| `discord_pin_message` | `include/channel.h` | supported | `PUT /v1/channels/{channel_id}/pins/{message_id}`. |
 | `discord_presence_add_activity` | `include/gateway.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_reconnect` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_remove_guild_ban` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_remove_guild_member` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_remove_guild_member_role` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_remove_intents` | `include/discord-events.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_remove_thread_member` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_remove_thread_member` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/thread-members/{user_id}`. |
 | `discord_request_guild_members` | `include/discord-events.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_run` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_search_guild_members` | `include/guild.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -255,8 +255,8 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_shutdown` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_shutdown_all` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_shutdown_all_ongoing` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_start_thread_with_message` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_start_thread_without_message` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_start_thread_with_message` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/messages/{message_id}/threads`. |
+| `discord_start_thread_without_message` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/threads`. |
 | `discord_strerror` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_sync_guild_template` | `include/guild_template.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_timer` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
@@ -270,8 +270,8 @@ This is a per-public-function inventory of Concord's public C headers. `pending`
 | `discord_timer_stop` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_timestamp` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_timestamp_us` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_trigger_typing_indicator` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_trigger_typing_indicator` | `include/channel.h` | supported | `POST /v1/channels/{channel_id}/typing`. |
 | `discord_unclaim` | `include/discord.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
-| `discord_unpin_message` | `include/channel.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
+| `discord_unpin_message` | `include/channel.h` | supported | `DELETE /v1/channels/{channel_id}/pins/{message_id}`. |
 | `discord_update_presence` | `include/discord-events.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
 | `discord_update_voice_state` | `include/discord-events.h` | pending | Map against the documented Fluxer endpoint/event in its resource task. |
