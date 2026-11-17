@@ -2,6 +2,28 @@
  * Invite Datatypes
  * **************************************************************************/
 
+#ifndef GENCODECS_JSON_DECODER_invite_presence_count
+#define GENCODECS_JSON_DECODER_invite_presence_count(_f, _js, _var, _type)    \
+    {                                                                         \
+        const jsmnf_pair *_src = _f                                           \
+            ? _f                                                              \
+            : jsmnf_find(root, "approximate_presence_count",                  \
+                         sizeof("approximate_presence_count") - 1);           \
+        GENCODECS_JSON_DECODER_int(_src, _js, _var, _type);                   \
+    }
+#endif
+
+#ifndef GENCODECS_JSON_DECODER_invite_member_count
+#define GENCODECS_JSON_DECODER_invite_member_count(_f, _js, _var, _type)      \
+    {                                                                         \
+        const jsmnf_pair *_src = _f                                           \
+            ? _f                                                              \
+            : jsmnf_find(root, "approximate_member_count",                    \
+                         sizeof("approximate_member_count") - 1);             \
+        GENCODECS_JSON_DECODER_int(_src, _js, _var, _type);                   \
+    }
+#endif
+
 #if GENCODECS_RECIPE == DATA
 ENUM(discord_invite_target_types)
     ENUMERATOR(DISCORD_INVITE_TARGET_STREAM, = 1)
@@ -14,6 +36,8 @@ ENUM_END
 PUB_STRUCT(discord_invite)
   /** the invite code (unique ID) */
     FIELD_PTR(code, char, *)
+  /** invite type (0 = guild, 1 = group DM) */
+    FIELD(type, int, 0)
   /** the guild this invite is for */
   COND_WRITE(self->guild != NULL)
     FIELD_STRUCT_PTR(guild, discord_guild, *)
@@ -38,9 +62,17 @@ PUB_STRUCT(discord_invite)
     FIELD_STRUCT_PTR(target_application, discord_application, *)
   COND_END
   /** approximate count of online members */
-    FIELD(approximate_presence_count, int, 0)
+    FIELD_CUSTOM(approximate_presence_count, "presence_count", int,
+                 DECOR_BLANK, INIT_BLANK, CLEANUP_BLANK,
+                 GENCODECS_JSON_ENCODER_int,
+                 GENCODECS_JSON_DECODER_invite_presence_count, 0)
   /** approximate count of total members */
-    FIELD(approximate_member_count, int, 0)
+    FIELD_CUSTOM(approximate_member_count, "member_count", int,
+                 DECOR_BLANK, INIT_BLANK, CLEANUP_BLANK,
+                 GENCODECS_JSON_ENCODER_int,
+                 GENCODECS_JSON_DECODER_invite_member_count, 0)
+  /** whether this invite grants temporary membership */
+    FIELD(temporary, bool, false)
   /* TODO: nullable */
   /** the expiration date of this invite */
   COND_WRITE(self->expires_at != 0)
