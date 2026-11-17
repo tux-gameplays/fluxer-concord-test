@@ -42,7 +42,11 @@ for symbol in $symbols; do
         sed -E 's/^\| `[^`]+` \| [^|]+ \| ([^|]+) \|.*/\1/' |
         tr -d ' ')
     case "$status" in
-        supported|adapted|unsupported|pending) ;;
+        supported|adapted|unsupported) ;;
+        pending)
+            echo "$symbol: still pending" >&2
+            failures=1
+            ;;
         *)
             echo "$symbol: invalid catalog status '$status'" >&2
             failures=1
@@ -56,10 +60,6 @@ for symbol in $symbols; do
             fi
             ;;
     esac
-    if [ "${1:-}" = "--complete" ] && [ "$status" = pending ]; then
-        echo "$symbol: still pending" >&2
-        failures=1
-    fi
 done
 
 catalog_symbols=$(sed -nE 's/^\| `(discord_[^`]+)` \|.*/\1/p' "$catalog")
@@ -70,7 +70,13 @@ for symbol in $catalog_symbols; do
     fi
 done
 
+pending_rows=$(grep -Ec '^\|[^|]+\|[^|]+\|[[:space:]]*pending[[:space:]]*\|' "$catalog" || true)
+if [ "$pending_rows" -gt 0 ]; then
+    echo "$catalog: $pending_rows pending row(s) remain" >&2
+    failures=1
+fi
+
 if [ "$failures" -ne 0 ]; then
     exit 1
 fi
-echo "Compatibility catalog covers $(printf '%s\n' "$symbols" | wc -l) public functions."
+echo "Compatibility catalog covers $(printf '%s\n' "$symbols" | wc -l) public functions (0 pending)."
