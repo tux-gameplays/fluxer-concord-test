@@ -838,7 +838,9 @@ PUB_STRUCT(discord_modify_channel)
     FIELD_PTR(reason, char, *)
 #endif
   /** 1-100 character channel name */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /* GROUP DM */
   /* TODO: implement base64 encoder */
 #if 0
@@ -848,7 +850,7 @@ PUB_STRUCT(discord_modify_channel)
   /* GUILD CHANNEL */
   /** the type of channel; only conversion between text and news is
        supported and only in guilds with the `NEWS` feature */
-  COND_WRITE(self->type == DISCORD_CHANNEL_GUILD_TEXT || self->type == DISCORD_CHANNEL_GUILD_ANNOUNCEMENT)
+  COND_WRITE(self->type == DISCORD_CHANNEL_GUILD_ANNOUNCEMENT)
     FIELD_ENUM(type, discord_channel_types)
   COND_END
   /** the position of the channel in the left-hand listing */
@@ -898,7 +900,9 @@ PUB_STRUCT(discord_modify_channel)
   COND_END
   /* THREAD */
   /** whether the thread is archived */
+  COND_WRITE(self->archived != false)
     FIELD(archived, bool, false)
+  COND_END
   /** duration in minutes to automatically arhived the thread after recent
        activity, can be set to: 60, 1440, 4320, 10080 */
   COND_WRITE(self->auto_archive_duration != 0)
@@ -906,10 +910,14 @@ PUB_STRUCT(discord_modify_channel)
   COND_END
   /** whether the thread is locked; when a thread is locked, only users with
        `MANAGE_THREADS` can unarchive it */
+  COND_WRITE(self->locked != false)
     FIELD(locked, bool, false)
+  COND_END
   /** whether non-moderators can add other non-moderators to a thread; only
        available on private threads */
+  COND_WRITE(self->invitable != false)
     FIELD(invitable, bool, false)
+  COND_END
 STRUCT_END
 #endif
 
@@ -1157,7 +1165,9 @@ PUB_STRUCT(discord_start_thread_with_message)
     FIELD_PTR(reason, char, *)
 #endif
   /** 1-100 character channel name */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /** duration in minutes to automatically archive the thread after recent
        activity, can be set to: 60, 1440, 4320, 10080 */
   COND_WRITE(self->auto_archive_duration != 0)
@@ -1165,7 +1175,7 @@ PUB_STRUCT(discord_start_thread_with_message)
   COND_END
   /** amount of seconds a user has to wait before sending another message
        (0-21600) */
-  COND_WRITE(self->rate_limit_per_user >= 0
+  COND_WRITE(self->rate_limit_per_user > 0
              && self->rate_limit_per_user <= 21600)
     FIELD(rate_limit_per_user, int, 0)
   COND_END
@@ -1180,7 +1190,9 @@ PUB_STRUCT(discord_start_thread_without_message)
     FIELD_PTR(reason, char, *)
 #endif
   /** 1-100 character channel name */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /** duration in minutes to automatically archive the thread after recent
        activity, can be set to: 60, 1440, 4320, 10080 */
   COND_WRITE(self->auto_archive_duration != 0)
@@ -1190,10 +1202,12 @@ PUB_STRUCT(discord_start_thread_without_message)
     FIELD_ENUM(type, discord_channel_types)
   /** whether non-moderators can add other non-moderators to a thread; only
        available when creating a private thread */
+  COND_WRITE(self->invitable != false)
     FIELD(invitable, bool, false)
+  COND_END
   /** amount of seconds a user has to wait before sending another message
        (0-21600) */
-  COND_WRITE(self->rate_limit_per_user >= 0
+  COND_WRITE(self->rate_limit_per_user > 0
              && self->rate_limit_per_user <= 21600)
     FIELD(rate_limit_per_user, int, 0)
   COND_END

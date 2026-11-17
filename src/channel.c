@@ -1,11 +1,174 @@
+#define _POSIX_C_SOURCE 200809L
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "discord.h"
 #include "discord-internal.h"
 #include "discord-request.h"
-#include "queriec.h"
+
+/******************************************************************************
+ * Internal helpers
+ ******************************************************************************/
+
+static PRINTF_LIKE(5, 6) bool
+_discord_query_append(char query[],
+                      size_t size,
+                      size_t *offset,
+                      const char key[],
+                      const char fmt[],
+                      ...)
+{
+    char value[128];
+    va_list args;
+    int val_len, written;
+
+    va_start(args, fmt);
+    val_len = vsnprintf(value, sizeof(value), fmt, args);
+    va_end(args);
+    if (val_len < 0 || (size_t)val_len >= sizeof(value)) return false;
+
+    written = snprintf(query + *offset, size - *offset, "%c%s=%s",
+                       *offset == 0 ? '?' : '&', key, value);
+    if (written < 0 || (size_t)written >= size - *offset) return false;
+
+    *offset += (size_t)written;
+    return true;
+}
+
+static bool
+_discord_unix_ms_to_iso8601(char buf[], size_t size, u64unix_ms ms)
+{
+    time_t sec = (time_t)(ms / 1000);
+    unsigned millis = (unsigned)(ms % 1000);
+    struct tm tm = { 0 };
+    int written;
+
+    if (!gmtime_r(&sec, &tm)) return false;
+    written = snprintf(buf, size, "%04d-%02d-%02dT%02d:%02d:%02d.%03uZ",
+                       tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                       tm.tm_hour, tm.tm_min, tm.tm_sec, millis);
+    return written > 0 && (size_t)written < size;
+}
+
+static CCORDcode
+_discord_format_reaction_emoji(struct discord *client,
+                               char buf[],
+                               size_t size,
+                               u64snowflake emoji_id,
+                               const char emoji_name[])
+{
+    char *pct_emoji_name = NULL;
+    int written;
+
+    CCORD_EXPECT(client, emoji_id != 0 || NOT_EMPTY_STR(emoji_name),
+                 CCORD_BAD_PARAMETER, "");
+    if (NOT_EMPTY_STR(emoji_name)) {
+        pct_emoji_name = curl_escape(emoji_name, (int)strlen(emoji_name));
+        CCORD_EXPECT(client, pct_emoji_name != NULL, CCORD_OUT_OF_MEMORY, "");
+    }
+    if (emoji_id) {
+        written = snprintf(buf, size, "%s:%" PRIu64,
+                           pct_emoji_name ? pct_emoji_name : "_", emoji_id);
+    }
+    else {
+        written = snprintf(buf, size, "%s", pct_emoji_name);
+    }
+    if (pct_emoji_name) curl_free(pct_emoji_name);
+
+    CCORD_EXPECT(client, written > 0 && (size_t)written < size,
+                 CCORD_MALFORMED_PAYLOAD, "Emoji identifier is too long");
+    return CCORD_OK;
+}
+
+static size_t
+_discord_pinned_messages_from_json(const char buf[], size_t size, void *p_self)
+{
+    struct discord_messages *self = p_self;
+    jsmnf_loader loader;
+    jsmnf_table *table = NULL;
+    size_t table_len = 0;
+    long ret = 0;
+
+    if (!buf || !size || !self) return 0;
+    jsmnf_init(&loader);
+    if (jsmnf_load_auto(&loader, buf, size, &table, &table_len) <= 0
+        || !loader.root || !loader.root->v)
+    {
+        free(table);
+        return 0;
+    }
+
+    if (JSMN_ARRAY == loader.root->v->type) {
+        ret = discord_messages_from_jsmnf(loader.root, buf, self);
+    }
+    else if (JSMN_OBJECT == loader.root->v->type) {
+        const jsmnf_pair *items = jsmnf_find(loader.root, "items", 5);
+        if (items && items->v && JSMN_ARRAY == items->v->type
+            && items->length > 0)
+        {
+            ret = (long)(sizeof *self * items->length);
+            for (unsigned i = 0; i < items->length; ++i) {
+                const jsmnf_pair *entry = items->fields + i;
+                const jsmnf_pair *msg_field =
+                    (entry->v && JSMN_OBJECT == entry->v->type)
+                        ? jsmnf_find(entry, "message", 7)
+                        : NULL;
+                const jsmnf_pair *target =
+                    (msg_field && msg_field->v
+                     && JSMN_OBJECT == msg_field->v->type)
+                        ? msg_field
+                        : entry;
+                struct discord_message msg = { 0 };
+                long sub = discord_message_from_jsmnf(target, buf, &msg);
+                if (sub >= 0) {
+                    ret += sub;
+                    carray_append(self, msg);
+                }
+                else {
+                    discord_message_cleanup(&msg);
+                }
+            }
+        }
+    }
+
+    free(table);
+    return ret > 0 ? (size_t)ret : 0;
+}
+
+static size_t
+_discord_reaction_users_from_json(const char buf[], size_t size, void *p_self)
+{
+    struct discord_users *self = p_self;
+    jsmnf_loader loader;
+    jsmnf_table *table = NULL;
+    size_t table_len = 0;
+    long ret = 0;
+
+    if (!buf || !size || !self) return 0;
+    jsmnf_init(&loader);
+    if (jsmnf_load_auto(&loader, buf, size, &table, &table_len) <= 0
+        || !loader.root || !loader.root->v)
+    {
+        free(table);
+        return 0;
+    }
+
+    if (JSMN_ARRAY == loader.root->v->type) {
+        ret = discord_users_from_jsmnf(loader.root, buf, self);
+    }
+    else if (JSMN_OBJECT == loader.root->v->type) {
+        const jsmnf_pair *items = jsmnf_find(loader.root, "items", 5);
+        if (items && items->v && JSMN_ARRAY == items->v->type) {
+            ret = discord_users_from_jsmnf(items, buf, self);
+        }
+    }
+
+    free(table);
+    return ret > 0 ? (size_t)ret : 0;
+}
 
 /******************************************************************************
  * Custom functions
@@ -17,8 +180,6 @@ struct _discord_get_channel_at_pos {
     struct discord_ret_channel ret;
 };
 
-/* XXX: placeholder until channel is obtained via cache at
- *      discord_get_channel_at_pos() */
 static void
 _done_get_channels(struct discord *client,
                    struct discord_response *resp,
@@ -51,6 +212,29 @@ _done_get_channels(struct discord *client,
         discord_refcounter_decr(&client->refcounter, cxt->ret.data);
 }
 
+static void
+_fail_get_channels(struct discord *client, struct discord_response *resp)
+{
+    struct _discord_get_channel_at_pos *cxt = resp->data;
+
+    resp->data = cxt->ret.data;
+    resp->keep = cxt->ret.keep;
+
+    if (cxt->ret.fail) cxt->ret.fail(client, resp);
+
+    if (cxt->ret.keep)
+        discord_refcounter_decr(&client->refcounter, (void *)cxt->ret.keep);
+    if (cxt->ret.data)
+        discord_refcounter_decr(&client->refcounter, cxt->ret.data);
+}
+
+static void
+_cleanup_get_channels(struct discord *client, void *data)
+{
+    (void)client;
+    free(data);
+}
+
 CCORDcode
 discord_get_channel_at_pos(struct discord *client,
                            u64snowflake guild_id,
@@ -62,24 +246,58 @@ discord_get_channel_at_pos(struct discord *client,
     struct discord_ret_channels channels_ret = { 0 };
 
     CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
+    CCORD_EXPECT(client, position >= 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, ret != NULL, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, ret->done != NULL, CCORD_BAD_PARAMETER, "");
+    CCORD_EXPECT(client, ret->done != NULL || ret->sync != NULL,
+                 CCORD_BAD_PARAMETER, "");
+
+    if (ret->sync) {
+        struct discord_channels chs = { 0 };
+        struct discord_ret_channels sync_ret = { .sync = &chs };
+        int matched = -1;
+        CCORDcode code =
+            discord_get_guild_channels(client, guild_id, &sync_ret);
+        if (code != CCORD_OK) {
+            discord_channels_cleanup(&chs);
+            return code;
+        }
+        for (int i = 0, pos = 0; i < chs.size; ++i) {
+            if (type == chs.array[i].type && pos++ == position) {
+                matched = i;
+                break;
+            }
+        }
+        if (matched < 0) {
+            discord_channels_cleanup(&chs);
+            return CCORD_BAD_PARAMETER;
+        }
+        if (ret->sync != DISCORD_SYNC_FLAG) {
+            *ret->sync = chs.array[matched];
+            memset(&chs.array[matched], 0, sizeof chs.array[matched]);
+        }
+        discord_channels_cleanup(&chs);
+        return CCORD_OK;
+    }
 
     cxt = malloc(sizeof *cxt);
+    CCORD_EXPECT(client, cxt != NULL, CCORD_OUT_OF_MEMORY, "");
     *cxt = (struct _discord_get_channel_at_pos){ .type = type,
                                                  .position = position,
                                                  .ret = *ret };
 
     channels_ret.done = &_done_get_channels;
-    channels_ret.fail = ret->fail;
+    channels_ret.fail = &_fail_get_channels;
     channels_ret.data = cxt;
+    channels_ret.cleanup = &_cleanup_get_channels;
 
     if (ret->keep) {
         CCORDcode code =
             discord_refcounter_incr(&client->refcounter, (void *)ret->keep);
         if (code != CCORD_OK) {
+            free(cxt);
             logmod_log(ERROR, client->logger,
                        "'.keep' data must be a Concord callback parameter");
+            return code;
         }
     }
     if (ret->data
@@ -90,8 +308,6 @@ discord_get_channel_at_pos(struct discord *client,
                                       ret->cleanup, false);
     }
 
-    /* TODO: fetch channel via caching, and return if results are non-existent
-     */
     return discord_get_guild_channels(client, guild_id, &channels_ret);
 }
 
@@ -149,43 +365,34 @@ discord_get_channel_messages(struct discord *client,
                              struct discord_ret_messages *ret)
 {
     struct discord_attributes attr = { 0 };
-    struct queriec queriec;
     char query[1024] = "";
+    size_t qoff = 0;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    queriec_init(&queriec, sizeof(query));
     if (params) {
-        int res;
-        char buf[32];
+        bool ok = true;
         if (params->limit) {
-            res =
-                queriec_snprintf_add(&queriec, query, "limit", sizeof("limit"),
-                                     buf, sizeof(buf), "%d", params->limit);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            ok = _discord_query_append(query, sizeof(query), &qoff, "limit",
+                                       "%d", params->limit);
+            CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
                          "Out of bounds write attempt");
         }
         if (params->around) {
-            res = queriec_snprintf_add(&queriec, query, "around",
-                                       sizeof("around"), buf, sizeof(buf),
+            ok = _discord_query_append(query, sizeof(query), &qoff, "around",
                                        "%" PRIu64, params->around);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
                          "Out of bounds write attempt");
         }
         if (params->before) {
-            res = queriec_snprintf_add(&queriec, query, "before",
-                                       sizeof("before"), buf, sizeof(buf),
+            ok = _discord_query_append(query, sizeof(query), &qoff, "before",
                                        "%" PRIu64, params->before);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
                          "Out of bounds write attempt");
         }
         if (params->after) {
-            res = queriec_snprintf_add(&queriec, query, "after",
-                                       sizeof("after"), buf, sizeof(buf),
+            ok = _discord_query_append(query, sizeof(query), &qoff, "after",
                                        "%" PRIu64, params->after);
-            CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                         CCORD_MALFORMED_PAYLOAD,
+            CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
                          "Out of bounds write attempt");
         }
     }
@@ -261,25 +468,20 @@ discord_create_reaction(struct discord *client,
                         struct discord_ret *ret)
 {
     struct discord_attributes attr = { 0 };
-    char *pct_emoji_name;
     char emoji_endpoint[256];
     CCORDcode code;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, message_id != 0, CCORD_BAD_PARAMETER, "");
+    code = _discord_format_reaction_emoji(
+        client, emoji_endpoint, sizeof(emoji_endpoint), emoji_id, emoji_name);
+    if (code != CCORD_OK) return code;
+
     DISCORD_ATTR_BLANK_INIT(attr, ret, NULL);
-    pct_emoji_name =
-        emoji_name ? curl_escape(emoji_name, (int)strlen(emoji_name)) : NULL;
-    if (emoji_id)
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s:%" PRIu64,
-                 pct_emoji_name, emoji_id);
-    else
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s", pct_emoji_name);
-    code = discord_rest_run(&client->rest, &attr, NULL, HTTP_PUT,
+    return discord_rest_run(&client->rest, &attr, NULL, HTTP_PUT,
                             "/channels/%" PRIu64 "/messages/%" PRIu64
                             "/reactions/%s/@me",
                             channel_id, message_id, emoji_endpoint);
-    curl_free(pct_emoji_name);
-    return code;
 }
 
 CCORDcode
@@ -291,25 +493,20 @@ discord_delete_own_reaction(struct discord *client,
                             struct discord_ret *ret)
 {
     struct discord_attributes attr = { 0 };
-    char *pct_emoji_name;
     char emoji_endpoint[256];
     CCORDcode code;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, message_id != 0, CCORD_BAD_PARAMETER, "");
+    code = _discord_format_reaction_emoji(
+        client, emoji_endpoint, sizeof(emoji_endpoint), emoji_id, emoji_name);
+    if (code != CCORD_OK) return code;
+
     DISCORD_ATTR_BLANK_INIT(attr, ret, NULL);
-    pct_emoji_name =
-        emoji_name ? curl_escape(emoji_name, (int)strlen(emoji_name)) : NULL;
-    if (emoji_id)
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s:%" PRIu64,
-                 pct_emoji_name, emoji_id);
-    else
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s", pct_emoji_name);
-    code = discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
+    return discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
                             "/channels/%" PRIu64 "/messages/%" PRIu64
                             "/reactions/%s/@me",
                             channel_id, message_id, emoji_endpoint);
-    curl_free(pct_emoji_name);
-    return code;
 }
 
 CCORDcode
@@ -322,26 +519,21 @@ discord_delete_user_reaction(struct discord *client,
                              struct discord_ret *ret)
 {
     struct discord_attributes attr = { 0 };
-    char *pct_emoji_name;
     char emoji_endpoint[256];
     CCORDcode code;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, message_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, user_id != 0, CCORD_BAD_PARAMETER, "");
+    code = _discord_format_reaction_emoji(
+        client, emoji_endpoint, sizeof(emoji_endpoint), emoji_id, emoji_name);
+    if (code != CCORD_OK) return code;
+
     DISCORD_ATTR_BLANK_INIT(attr, ret, NULL);
-    pct_emoji_name =
-        emoji_name ? curl_escape(emoji_name, (int)strlen(emoji_name)) : NULL;
-    if (emoji_id)
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s:%" PRIu64,
-                 pct_emoji_name, emoji_id);
-    else
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s", pct_emoji_name);
-    code = discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
+    return discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
                             "/channels/%" PRIu64 "/messages/%" PRIu64
                             "/reactions/%s/%" PRIu64,
                             channel_id, message_id, emoji_endpoint, user_id);
-    curl_free(pct_emoji_name);
-    return code;
 }
 
 CCORDcode
@@ -356,45 +548,39 @@ discord_get_reactions(struct discord *client,
     struct discord_attributes attr = { 0 };
     char emoji_endpoint[256];
     char query[1024] = "";
-    struct queriec queriec;
-    char *pct_emoji_name;
+    size_t qoff = 0;
     CCORDcode code;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, message_id != 0, CCORD_BAD_PARAMETER, "");
-    DISCORD_ATTR_LIST_INIT(attr, discord_users, ret, NULL);
-    queriec_init(&queriec, sizeof(query));
+    code = _discord_format_reaction_emoji(
+        client, emoji_endpoint, sizeof(emoji_endpoint), emoji_id, emoji_name);
+    if (code != CCORD_OK) return code;
+
     if (params) {
-        int res;
-        char buf[32];
-        CCORD_EXPECT(client, params->after != 0, CCORD_BAD_PARAMETER, "");
-        res =
-            queriec_snprintf_add(&queriec, query, "after", sizeof("after"),
-                                 buf, sizeof(buf), "%" PRIu64, params->after);
-        CCORD_EXPECT(client, res >= 0, CCORD_ERRNO,
-                     "Out of bounds write attempt");
+        bool ok = true;
+        if (params->after) {
+            ok = _discord_query_append(query, sizeof(query), &qoff, "after",
+                                       "%" PRIu64, params->after);
+            CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
+                         "Out of bounds write attempt");
+        }
         if (params->limit) {
             CCORD_EXPECT(client, params->limit > 0 && params->limit <= 100,
                          CCORD_BAD_PARAMETER, "");
-            res =
-                queriec_snprintf_add(&queriec, query, "limit", sizeof("limit"),
-                                     buf, sizeof(buf), "%d", params->limit);
-            CCORD_EXPECT(client, res >= 0, CCORD_ERRNO,
+            ok = _discord_query_append(query, sizeof(query), &qoff, "limit",
+                                       "%d", params->limit);
+            CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
                          "Out of bounds write attempt");
         }
     }
-    pct_emoji_name =
-        emoji_name ? curl_escape(emoji_name, (int)strlen(emoji_name)) : NULL;
-    if (emoji_id)
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s:%" PRIu64,
-                 pct_emoji_name, emoji_id);
-    else
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s", pct_emoji_name);
-    code = discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
+
+    DISCORD_ATTR_LIST_INIT(attr, discord_users, ret, NULL);
+    attr.response.from_json = _discord_reaction_users_from_json;
+    return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
                             "/channels/%" PRIu64 "/messages/%" PRIu64
                             "/reactions/%s%s",
                             channel_id, message_id, emoji_endpoint, query);
-    curl_free(pct_emoji_name);
-    return code;
 }
 
 CCORDcode
@@ -422,25 +608,20 @@ discord_delete_all_reactions_for_emoji(struct discord *client,
                                        struct discord_ret *ret)
 {
     struct discord_attributes attr = { 0 };
-    char *pct_emoji_name;
     char emoji_endpoint[256];
     CCORDcode code;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, message_id != 0, CCORD_BAD_PARAMETER, "");
+    code = _discord_format_reaction_emoji(
+        client, emoji_endpoint, sizeof(emoji_endpoint), emoji_id, emoji_name);
+    if (code != CCORD_OK) return code;
+
     DISCORD_ATTR_BLANK_INIT(attr, ret, NULL);
-    pct_emoji_name =
-        emoji_name ? curl_escape(emoji_name, (int)strlen(emoji_name)) : NULL;
-    if (emoji_id)
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s:%" PRIu64,
-                 pct_emoji_name, emoji_id);
-    else
-        snprintf(emoji_endpoint, sizeof(emoji_endpoint), "%s", pct_emoji_name);
-    code = discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
+    return discord_rest_run(&client->rest, &attr, NULL, HTTP_DELETE,
                             "/channels/%" PRIu64 "/messages/%" PRIu64
                             "/reactions/%s",
                             channel_id, message_id, emoji_endpoint);
-    curl_free(pct_emoji_name);
-    return code;
 }
 
 CCORDcode
@@ -479,31 +660,23 @@ discord_delete_message(struct discord *client,
                             channel_id, message_id);
 }
 
-/** @todo add duplicated ID verification */
 CCORDcode
 discord_bulk_delete_messages(struct discord *client,
                              u64snowflake channel_id,
                              struct discord_bulk_delete_messages *params,
                              struct discord_ret *ret)
 {
-    const u64unix_ms now = discord_timestamp(client);
     struct discord_attributes attr = { 0 };
     struct ccord_szbuf body = { 0 };
+    CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, params != NULL, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, params->messages != NULL, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client,
-                 params->messages->size >= 2 && params->messages->size <= 100,
+                 params->messages->size >= 1 && params->messages->size <= 100,
                  CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT_OK(client, discord_bulk_delete_messages_to_json(
                                 &body.start, &body.size, params));
     DISCORD_ATTR_BLANK_INIT(attr, ret, params->reason);
-    for (int i = 0; i < params->messages->size; ++i) {
-        const u64unix_ms tstamp =
-            (params->messages->array[i] >> 22) + 1420070400000;
-        CCORD_EXPECT(client, now <= tstamp || now - tstamp <= 1209600000,
-                     CCORD_BAD_PARAMETER,
-                     "Messages should not be older than 2 weeks.");
-    }
     return discord_rest_run(&client->rest, &attr, &body, HTTP_POST,
                             "/channels/%" PRIu64 "/messages/bulk-delete",
                             channel_id);
@@ -551,8 +724,13 @@ discord_create_channel_invite(struct discord *client,
     struct discord_attributes attr = { 0 };
     struct ccord_szbuf body = { 0 };
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT_OK(client, discord_create_channel_invite_to_json(
-                                &body.start, &body.size, params));
+    if (params) {
+        CCORD_EXPECT_OK(client, discord_create_channel_invite_to_json(
+                                    &body.start, &body.size, params));
+    }
+    else {
+        body = (struct ccord_szbuf){ "{}", 2, true };
+    }
     DISCORD_ATTR_INIT(attr, discord_invite, ret,
                       params ? params->reason : NULL);
     return discord_rest_run(&client->rest, &attr, &body, HTTP_POST,
@@ -590,7 +768,7 @@ discord_follow_news_channel(struct discord *client,
                  "");
     CCORD_EXPECT_OK(client, discord_follow_news_channel_to_json(
                                 &body.start, &body.size, params));
-    DISCORD_ATTR_INIT(attr, discord_channel, ret, NULL);
+    DISCORD_ATTR_INIT(attr, discord_followed_channel, ret, NULL);
     return discord_rest_run(&client->rest, &attr, &body, HTTP_POST,
                             "/channels/%" PRIu64 "/followers", channel_id);
 }
@@ -615,8 +793,9 @@ discord_get_pinned_messages(struct discord *client,
     struct discord_attributes attr = { 0 };
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
     DISCORD_ATTR_LIST_INIT(attr, discord_messages, ret, NULL);
+    attr.response.from_json = _discord_pinned_messages_from_json;
     return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
-                            "/channels/%" PRIu64 "/pins", channel_id);
+                            "/channels/%" PRIu64 "/messages/pins", channel_id);
 }
 
 CCORDcode
@@ -658,17 +837,12 @@ discord_group_dm_add_recipient(struct discord *client,
                                struct discord_group_dm_add_recipient *params,
                                struct discord_ret *ret)
 {
-    struct discord_attributes attr = { 0 };
-    struct ccord_szbuf body = { 0 };
-    CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, user_id != 0, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT(client, params != NULL, CCORD_BAD_PARAMETER, "");
-    CCORD_EXPECT_OK(client, discord_group_dm_add_recipient_to_json(
-                                &body.start, &body.size, params));
-    DISCORD_ATTR_BLANK_INIT(attr, ret, NULL);
-    return discord_rest_run(&client->rest, &attr, &body, HTTP_PUT,
-                            "/channels/%" PRIu64 "/recipients/%" PRIu64,
-                            channel_id, user_id);
+    (void)channel_id;
+    (void)user_id;
+    (void)params;
+    return discord_rest_unsupported(client, ret ? ret->fail : NULL,
+                                    ret ? ret->data : NULL,
+                                    ret ? ret->keep : NULL);
 }
 
 CCORDcode
@@ -804,25 +978,25 @@ discord_list_public_archived_threads(
     struct discord_ret_thread_response_body *ret)
 {
     struct discord_attributes attr = { 0 };
-    struct queriec queriec;
     char query[1024] = "";
-    char buf[32];
-    int res;
+    size_t qoff = 0;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    DISCORD_ATTR_INIT(attr, discord_thread_response_body, ret, NULL);
-    queriec_init(&queriec, sizeof(query));
     if (before) {
-        res = queriec_snprintf_add(&queriec, query, "before", sizeof("before"),
-                                   buf, sizeof(buf), "%" PRIu64, before);
-        CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                     CCORD_MALFORMED_PAYLOAD, "Out of bounds write attempt");
+        char iso[64];
+        bool ok = _discord_unix_ms_to_iso8601(iso, sizeof(iso), before)
+                  && _discord_query_append(query, sizeof(query), &qoff,
+                                           "before", "%s", iso);
+        CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
+                     "Out of bounds write attempt");
     }
     if (limit) {
-        res = queriec_snprintf_add(&queriec, query, "limit", sizeof("limit"),
-                                   buf, sizeof(buf), "%d", limit);
-        CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                     CCORD_MALFORMED_PAYLOAD, "Out of bounds write attempt");
+        bool ok = _discord_query_append(query, sizeof(query), &qoff, "limit",
+                                        "%d", limit);
+        CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
+                     "Out of bounds write attempt");
     }
+    DISCORD_ATTR_INIT(attr, discord_thread_response_body, ret, NULL);
     return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
                             "/channels/%" PRIu64 "/threads/archived/public%s",
                             channel_id, query);
@@ -837,25 +1011,25 @@ discord_list_private_archived_threads(
     struct discord_ret_thread_response_body *ret)
 {
     struct discord_attributes attr = { 0 };
-    struct queriec queriec;
     char query[1024] = "";
-    char buf[32];
-    int res;
+    size_t qoff = 0;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    DISCORD_ATTR_INIT(attr, discord_thread_response_body, ret, NULL);
-    queriec_init(&queriec, sizeof(query));
     if (before) {
-        res = queriec_snprintf_add(&queriec, query, "before", sizeof("before"),
-                                   buf, sizeof(buf), "%" PRIu64, before);
-        CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                     CCORD_MALFORMED_PAYLOAD, "Out of bounds write attempt");
+        char iso[64];
+        bool ok = _discord_unix_ms_to_iso8601(iso, sizeof(iso), before)
+                  && _discord_query_append(query, sizeof(query), &qoff,
+                                           "before", "%s", iso);
+        CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
+                     "Out of bounds write attempt");
     }
     if (limit) {
-        res = queriec_snprintf_add(&queriec, query, "limit", sizeof("limit"),
-                                   buf, sizeof(buf), "%d", limit);
-        CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                     CCORD_MALFORMED_PAYLOAD, "Out of bounds write attempt");
+        bool ok = _discord_query_append(query, sizeof(query), &qoff, "limit",
+                                        "%d", limit);
+        CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
+                     "Out of bounds write attempt");
     }
+    DISCORD_ATTR_INIT(attr, discord_thread_response_body, ret, NULL);
     return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
                             "/channels/%" PRIu64 "/threads/archived/private%s",
                             channel_id, query);
@@ -870,25 +1044,23 @@ discord_list_joined_private_archived_threads(
     struct discord_ret_thread_response_body *ret)
 {
     struct discord_attributes attr = { 0 };
-    struct queriec queriec;
     char query[1024] = "";
-    char buf[32];
-    int res;
+    size_t qoff = 0;
+
     CCORD_EXPECT(client, channel_id != 0, CCORD_BAD_PARAMETER, "");
-    DISCORD_ATTR_INIT(attr, discord_thread_response_body, ret, NULL);
-    queriec_init(&queriec, sizeof(query));
     if (before) {
-        res = queriec_snprintf_add(&queriec, query, "before", sizeof("before"),
-                                   buf, sizeof(buf), "%" PRIu64, before);
-        CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                     CCORD_MALFORMED_PAYLOAD, "Out of bounds write attempt");
+        bool ok = _discord_query_append(query, sizeof(query), &qoff, "before",
+                                        "%" PRIu64, before);
+        CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
+                     "Out of bounds write attempt");
     }
     if (limit) {
-        res = queriec_snprintf_add(&queriec, query, "limit", sizeof("limit"),
-                                   buf, sizeof(buf), "%d", limit);
-        CCORD_EXPECT(client, res != QUERIEC_ERROR_NOMEM,
-                     CCORD_MALFORMED_PAYLOAD, "Out of bounds write attempt");
+        bool ok = _discord_query_append(query, sizeof(query), &qoff, "limit",
+                                        "%d", limit);
+        CCORD_EXPECT(client, ok, CCORD_MALFORMED_PAYLOAD,
+                     "Out of bounds write attempt");
     }
+    DISCORD_ATTR_INIT(attr, discord_thread_response_body, ret, NULL);
     return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET,
                             "/channels/%" PRIu64
                             "/users/@me/threads/archived/private%s",
