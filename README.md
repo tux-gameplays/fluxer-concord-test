@@ -8,39 +8,47 @@
 <img src="https://raw.githubusercontent.com/Cogmasters/concord/bd1436a84af21384d93d92aed32b4c7828d0d793/docs/static/logo.svg" width="250" alt="Concord Logo">
 </div>
 
-# Concord - C Discord API library
+# Concord - C Fluxer API library
 
 [ ![discord-shield][] ][discord-invite]
 
 ## About
 
-Concord is an asynchronous C99 Discord API library with minimal external dependencies, and a low-level translation of the Discord official documentation to C code.
+Concord is an asynchronous C99 client library adapted for **Fluxer** (HTTP API `v1` and Gateway `v1`) with minimal external dependencies. It preserves Concord's familiar `discord_*` C symbol names (`struct discord`, `discord_from_token()`, `discord_create_message()`, etc.) while discovering Fluxer service endpoints dynamically from `GET /.well-known/fluxer`.
+
+- **[Fluxer Client Guide](docs/FLUXER.md)** — Official & self-hosted discovery (`/.well-known/fluxer`), `discord_set_instance_origin()`, Gateway v1 behavior, and `examples/fluxer-ping.c`.
+- **[Fluxer Compatibility Inventory](docs/FLUXER_COMPATIBILITY.md)** — Complete per-function status matrix (`supported`, `adapted`, or `unsupported` returning `CCORD_UNSUPPORTED`).
 
 | Contents                                   | Description                                  |
 |-------------------------------------------|----------------------------------------------|
+| [Fluxer Guide](docs/FLUXER.md)            | Fluxer discovery, self-hosting, & Gateway v1 |
+| [Compatibility](docs/FLUXER_COMPATIBILITY.md) | Per-function Fluxer support matrix       |
 | [Build Instructions](#build-instructions) | How to build libcurl and Concord             |
 | [Environment Setup](#setting-up-your-environment) | Project setup and compilation        |
-| [Configuration](#configuring-concord)     | How to configure Concord with config.json    |
-| [Example Bot](#test-copycat-bot)          | Test Concord with a simple copycat bot       |
+| [Configuration](#configuring-concord)     | Configure token and `instance_origin`        |
+| [Example Bot](#test-fluxer-ping-bot)      | Test Concord with the `!ping` Fluxer bot     |
 | [Build Options](#configure-your-build)    | Special flags and build targets              |
 | [Installation](#installing-concord)       | Installing Concord on your system            |
 | [Contributing](#contributing)             | How to contribute to Concord                 |
 
 ### Getting Started
 
-- [Documentation](https://cogmasters.github.io/concord/)
-- [Discord API Roadmap](docs/DISCORD_ROADMAP.md)
+- [Fluxer Setup & Protocol Guide](docs/FLUXER.md)
+- [Fluxer Compatibility Matrix](docs/FLUXER_COMPATIBILITY.md)
+- [API Reference Documentation](https://cogmasters.github.io/concord/)
 
 #### Configuration
 
 - [Config.json Directives](docs/guides/config.json_directives.md) - Configure your bot using JSON
 - [Setup with Environment Variables](docs/guides/setup_concord_with_env.md) - Use environment variables
 
-#### Discord Features
+#### Features & Protocol Notes
 
+- **Service Discovery (`/.well-known/fluxer`):** Concord resolves `endpoints.api_public` (appending `/v1`), `endpoints.gateway`, and `endpoints.media` from `GET {instance_origin}/.well-known/fluxer`. By default `discord_from_token()` uses `https://api.fluxer.app`; self-hosted Fluxer origins can be configured via `discord_from_config()`, `"instance_origin"` in `config.json`, or `discord_set_instance_origin()` before `discord_run()`.
+- **No Gateway Intents:** Fluxer Gateway v1 does not use Discord intent bitmasks; `MESSAGE_CREATE` delivers message `content` without intents. `discord_add_intents()` and `discord_remove_intents()` remain as source-compatible local helpers and never transmit intents on `IDENTIFY`.
+- **Unsupported APIs (`CCORD_UNSUPPORTED`):** Fluxer currently has no slash/application-command or interaction protocol. Calling functions in `include/application_command.h`, `include/interaction.h`, or other unsupported operations immediately returns `CCORD_UNSUPPORTED` (and invokes `ret->fail` if provided) with zero network traffic instead of emulating slash commands as prefix commands.
 - [Embeds](docs/guides/embeds.md) - Create rich message embeds
-- [Slash Commands](docs/guides/slash-commands.md) - Implement Discord application commands
-- [Event Scheduler](docs/guides/scheduler_event.md) - Control Discord event processing
+- [Event Scheduler](docs/guides/scheduler_event.md) - Control Gateway event processing
 - [SQLite3 with Concord](docs/guides/sqlite3_db_with_concord.md) - Persist data with SQLite
 - [Databases with Concord](docs/guides/databases_with_concord.md) - General database integration
 
@@ -60,73 +68,42 @@ Following are other standalone guides created by the community to help you get s
 
 ### Examples
 
-*The following are minimalistic examples, refer to [`examples/`](examples/) for a better overview.*
+*Refer to [`examples/fluxer-ping.c`](examples/fluxer-ping.c) and [`docs/FLUXER.md`](docs/FLUXER.md) for a complete Fluxer walkthrough.*
 
-#### Slash Commands (new method)
-
-```c
-#include <string.h>
-#include <concord/discord.h>
-
-#define GUILD_ID 1234567898765431 // replace with your guild ID
-
-void on_ready(struct discord *client, const struct discord_ready *event) {
-    struct discord_create_guild_application_command params = {
-        .name = "ping",
-        .description = "Ping command!"
-    };
-    discord_create_guild_application_command(client, event->application->id,
-                                             GUILD_ID, &params, NULL);
-}
-
-void on_interaction(struct discord *client, const struct discord_interaction *event) {
-    if (event->type != DISCORD_INTERACTION_APPLICATION_COMMAND)
-        return; /* return if interaction isn't a slash command */
-
-    if (strcmp(event->data->name, "ping") == 0) {
-          struct discord_interaction_response params = {
-                .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
-                .data = &(struct discord_interaction_callback_data){
-                      .content = "pong"
-                }
-          };
-          discord_create_interaction_response(client, event->id,
-                                              event->token, &params, NULL);
-    }
-}
-
-int main(void) {
-    struct discord *client = discord_from_token(BOT_TOKEN);
-    discord_set_on_ready(client, &on_ready);
-    discord_set_on_interaction_create(client, &on_interaction);
-    discord_run(client);
-}
-```
-
-#### Message Commands (old method)
+#### Prefix Command Bot (`!ping` -> `pong`)
 
 ```c
-#include <string.h>
+#include <stdlib.h>
 #include <concord/discord.h>
 #include <concord/logmod.h>
 
-void on_ready(struct discord *client, const struct discord_ready *event) {
-    logmod_log(INFO, NULL, "Logged in as %s!", event->user->username);
+static void on_ready(struct discord *client, const struct discord_ready *event) {
+    (void)client;
+    logmod_log(INFO, NULL, "Connected to Fluxer as %s!", event->user->username);
 }
 
-void on_message(struct discord *client, const struct discord_message *event) {
-    if (strcmp(event->content, "ping") == 0) {
-        struct discord_create_message params = { .content = "pong" };
-        discord_create_message(client, event->channel_id, &params, NULL);
-    }
+static void on_ping(struct discord *client, const struct discord_message *event) {
+    if (!event || event->webhook_id != 0) return;
+    if (!event->author || event->author->bot) return;
+
+    struct discord_create_message params = { .content = "pong" };
+    discord_create_message(client, event->channel_id, &params, NULL);
 }
 
 int main(void) {
-    struct discord *client = discord_from_token(BOT_TOKEN);
-    discord_add_intents(client, DISCORD_GATEWAY_MESSAGE_CONTENT);
+    struct discord_config config = {
+        .token = getenv("FLUXER_TOKEN"),
+        .instance_origin = getenv("FLUXER_INSTANCE_ORIGIN"), /* NULL -> https://api.fluxer.app */
+    };
+    struct discord *client = discord_from_config(&config);
+    if (!client) return EXIT_FAILURE;
+
+    discord_set_prefix(client, "!");
     discord_set_on_ready(client, &on_ready);
-    discord_set_on_message_create(client, &on_message);
+    discord_set_on_command(client, "ping", &on_ping);
     discord_run(client);
+    discord_cleanup(client);
+    return EXIT_SUCCESS;
 }
 ```
 
@@ -255,7 +232,8 @@ object. In that case, you will need to compile Concord with `CFLAGS="-fpic" make
 The following outlines `config.json` fields:
 ```js
 {
-  "token": "YOUR-BOT-TOKEN", // replace with your bot token
+  "token": "YOUR-FLUXER-BOT-TOKEN", // never commit real bot tokens
+  "instance_origin": "https://api.fluxer.app", // optional; override for self-hosted Fluxer
   "log": {                   // logging directives
     "level": "TRACE",           // TRACE, DEBUG, INFO, WARN, ERROR, FATAL
     "trace": "bot.log",         // the log output file (null to disable)
@@ -269,31 +247,27 @@ The following outlines `config.json` fields:
   // here you can add your custom fields *
 }
 ```
-\* *Your custom field contents can be fetched with [discord\_config\_get\_field()][discord-config-get-field]*
+\* *Your custom field contents can be fetched with [discord\_config\_get\_field()][discord-config-get-field]. You can also reconfigure the Fluxer origin before `discord_run()` with `discord_set_instance_origin(client, origin)`.*
 
-See more information about the `config.json` file in the [config.json directives](docs/guides/config.json_directives.md) guide.
+See more information in [`docs/FLUXER.md`](docs/FLUXER.md) and the [config.json directives](docs/guides/config.json_directives.md) guide.
 
-## Test Copycat-Bot
+## Test Fluxer-Ping Bot
 
-1. Get your bot token and add it to `config.json`, 
-   by assigning it to discord's "token" field. There are 
-   well written instructions from 
-   [discord-irc](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token)
-   explaining how to get your bot token and adding it to a server.
-2. Build example executables:
+1. Create a bot application on Fluxer (or your self-hosted Fluxer instance) and export its token via `FLUXER_TOKEN`.
+2. Build Concord and example executables:
    ```console
-   $ make examples
+   $ make && make -C examples fluxer-ping
    ```
-3. Run Copycat-Bot:
+3. Run `fluxer-ping` (set `FLUXER_INSTANCE_ORIGIN` when targeting a self-hosted instance):
    ```console
-   $ cd examples && ./copycat
+   $ FLUXER_TOKEN="your-bot-token" ./examples/fluxer-ping
    ```
 
-### Get Copycat-Bot Response
+### Get Fluxer-Ping Response
 
-Type a message in any channel the bot is part of and the bot should send an exact copy of it in return.
+Send `!ping` from a human account in any channel visible to the bot; the bot ignores bot/webhook messages and replies `pong`.
 
-### Terminate Copycat-Bot
+### Terminate Fluxer-Ping Bot
 
 With <kbd>Ctrl</kbd>+<kbd>c</kbd> or with <kbd>Ctrl</kbd>+<kbd>|</kbd>
 

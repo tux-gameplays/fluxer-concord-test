@@ -844,8 +844,10 @@ discord_from_config(const struct discord_config *config)
 {
     struct discord *client;
     char parsed_token[0x1000];
+    char parsed_origin[0x1000];
     CCORDcode code;
 
+    if (!config) return NULL;
     if (!(client = calloc(1, sizeof *client))) {
         logmod_log(FATAL, NULL, "Couldn't allocate memory for client");
         return NULL;
@@ -872,14 +874,54 @@ discord_from_config(const struct discord_config *config)
         return discord_cleanup(client), NULL;
     }
     client->config = *config;
+    client->config.token = NULL;
     client->config.instance_origin = NULL;
-    if (config->instance_origin
-        && !cog_strndup(config->instance_origin, strlen(config->instance_origin),
-                        &client->config.instance_origin))
+    client->config.log.disable.ids = NULL;
+    client->config.log.disable.size = 0;
+
+    if (!cog_strndup(parsed_token, strlen(parsed_token),
+                     &client->config.token))
     {
-        logmod_log(FATAL, client->logger,
-                   "Couldn't copy Fluxer instance origin");
+        logmod_log(FATAL, client->logger, "Couldn't copy token");
         return discord_cleanup(client), NULL;
+    }
+    if (config->instance_origin && *config->instance_origin) {
+        const char *origin = config->instance_origin;
+        if (strstr(origin, "${")) {
+            if (!_discord_envs_expand(parsed_origin, sizeof parsed_origin,
+                                      origin)
+                || !*parsed_origin)
+            {
+                logmod_log(FATAL, client->logger,
+                           "Couldn't parse Fluxer instance origin");
+                return discord_cleanup(client), NULL;
+            }
+            origin = parsed_origin;
+        }
+        if (!cog_strndup(origin, strlen(origin),
+                         &client->config.instance_origin))
+        {
+            logmod_log(FATAL, client->logger,
+                       "Couldn't copy Fluxer instance origin");
+            return discord_cleanup(client), NULL;
+        }
+    }
+    if (config->log.disable.size > 0 && config->log.disable.ids) {
+        client->config.log.disable.ids =
+            calloc(config->log.disable.size, sizeof(char *));
+        if (!client->config.log.disable.ids) {
+            return discord_cleanup(client), NULL;
+        }
+        client->config.log.disable.size = config->log.disable.size;
+        for (size_t i = 0; i < config->log.disable.size; ++i) {
+            if (config->log.disable.ids[i]
+                && !cog_strndup(config->log.disable.ids[i],
+                                strlen(config->log.disable.ids[i]),
+                                &client->config.log.disable.ids[i]))
+            {
+                return discord_cleanup(client), NULL;
+            }
+        }
     }
     if ((code = _discord_init(client)) != CCORD_OK) {
         logmod_log(FATAL, client->logger, "Couldn't initialize client: %s",
@@ -889,11 +931,71 @@ discord_from_config(const struct discord_config *config)
     return client;
 }
 
+CCORDcode
+discord_set_instance_origin(struct discord *client, const char origin[])
+{
+    struct fluxer_discovery discovery = { 0 };
+    char parsed_origin[0x1000];
+    const char *effective_origin = origin;
+    char *origin_copy = NULL;
+    CCORDcode code;
+
+    if (!client || !origin || !*origin || !client->is_original)
+        return CCORD_BAD_PARAMETER;
+
+    if ((client->gw.ws && ws_get_status(client->gw.ws) != WS_DISCONNECTED)
+        || (client->gw.session
+            && (client->gw.session->is_ready || *client->gw.session->id
+                || client->gw.session->status != DISCORD_SESSION_OFFLINE)))
+    {
+        logmod_log(
+            ERROR, client->logger,
+            "Cannot change Fluxer instance origin while Gateway session is active");
+        return CCORD_BAD_PARAMETER;
+    }
+
+    if (strstr(origin, "${")) {
+        if (!_discord_envs_expand(parsed_origin, sizeof parsed_origin, origin)
+            || !*parsed_origin)
+        {
+            return CCORD_BAD_PARAMETER;
+        }
+        effective_origin = parsed_origin;
+    }
+
+    if ((code = fluxer_discovery_fetch(effective_origin, &discovery))
+        != CCORD_OK)
+    {
+        logmod_log(ERROR, client->logger,
+                   "Couldn't discover Fluxer instance endpoints: %s (code %d)",
+                   ccord_strerror(code), code);
+        return code;
+    }
+
+    if (!cog_strndup(effective_origin, strlen(effective_origin), &origin_copy))
+    {
+        fluxer_discovery_cleanup(&discovery);
+        return CCORD_OUT_OF_MEMORY;
+    }
+
+    free(client->config.instance_origin);
+    client->config.instance_origin = origin_copy;
+    free(client->api_base_url);
+    free(client->gateway_url);
+    free(client->media_url);
+    client->api_base_url = discovery.api_base;
+    client->gateway_url = discovery.gateway_url;
+    client->media_url = discovery.media_url;
+    if (client->rest.requestor.ua)
+        ua_set_url(client->rest.requestor.ua, client->api_base_url);
+
+    return CCORD_OK;
+}
+
 static void
 _discord_clone_gateway_cleanup(struct discord_gateway *clone)
 {
     if (clone->payload.json.table) free(clone->payload.json.table);
-    if (clone->payload.data) free((void *)clone->payload.data);
     if (clone->payload.json.start) free(clone->payload.json.start);
     memset(clone, 0, sizeof *clone);
 }
@@ -905,6 +1007,15 @@ _discord_clone_gateway(struct discord_gateway *clone,
     const struct discord_gateway_payload *orig_payload = &orig->payload;
     struct discord_gateway_payload *payload = &clone->payload;
     jsmnf_loader loader;
+
+    payload->json.start = NULL;
+    payload->json.size = 0;
+    payload->json.table = NULL;
+    payload->data = NULL;
+    if (!orig_payload->json.start || !orig_payload->json.size) {
+        payload->json.ntable = 0;
+        return CCORD_OK;
+    }
     if (!(payload->json.size =
               cog_strndup(orig_payload->json.start, orig_payload->json.size,
                           &payload->json.start)))

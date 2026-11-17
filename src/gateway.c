@@ -20,6 +20,7 @@ discord_disconnect_guild_member(struct discord *client,
     struct discord_attributes attr = { 0 };
     struct ccord_szbuf body = { 0 };
     jsonb b;
+    if (!client) return CCORD_BAD_PARAMETER;
     CCORD_EXPECT(client, guild_id != 0, CCORD_BAD_PARAMETER, "");
     CCORD_EXPECT(client, user_id != 0, CCORD_BAD_PARAMETER, "");
     DISCORD_ATTR_INIT(attr, discord_guild_member, ret,
@@ -32,6 +33,7 @@ discord_disconnect_guild_member(struct discord *client,
         jsonb_null_auto(&b, &body.start, &body.size);
         jsonb_object_pop_auto(&b, &body.start, &body.size);
     }
+    body.size = b.pos;
     return discord_rest_run(&client->rest, &attr, &body, HTTP_PATCH,
                             "/guilds/%" PRIu64 "/members/%" PRIu64, guild_id,
                             user_id);
@@ -51,18 +53,15 @@ _ccord_szbuf_from_json(const char str[], size_t len, void *p_buf)
 CCORDcode
 discord_get_gateway(struct discord *client, struct ccord_szbuf *ret)
 {
-    struct discord_attributes attr = { 0 };
-    CCORD_EXPECT(client, ret != NULL, CCORD_BAD_PARAMETER, "");
-    attr.response.from_json = &_ccord_szbuf_from_json;
-    attr.dispatch.has_type = true;
-    attr.dispatch.sync = ret;
-    return discord_rest_run(&client->rest, &attr, NULL, HTTP_GET, "/gateway");
+    (void)ret;
+    return discord_rest_unsupported(client, NULL, NULL, NULL);
 }
 
 CCORDcode
 discord_get_gateway_bot(struct discord *client, struct ccord_szbuf *ret)
 {
     struct discord_attributes attr = { 0 };
+    if (!client) return CCORD_BAD_PARAMETER;
     CCORD_EXPECT(client, ret != NULL, CCORD_BAD_PARAMETER, "");
     attr.response.from_json = &_ccord_szbuf_from_json;
     attr.dispatch.has_type = true;

@@ -17,6 +17,7 @@ EXES = 8ball \
        embed \
        emoji \
        fetch-messages \
+       fluxer-ping \
        guild-template \
        guild \
        invite \

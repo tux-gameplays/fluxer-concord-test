@@ -51,10 +51,21 @@ _discord_shard_cache_cleanup(struct discord *client,
 
 #define CACHE_END(CACHE) pthread_mutex_unlock(&CACHE->lock)
 
+static int
+_shard_index(const struct integers *shard, int total_shards)
+{
+    if (!shard || shard->size <= 0 || shard->array[0] < 0
+        || shard->array[0] >= total_shards)
+    {
+        return 0;
+    }
+    return shard->array[0];
+}
+
 EV_CB(ready, discord_ready)
 {
-    int shard = ev->shard ? ev->shard->array[0] : 0;
     struct _discord_cache_data *data = client->cache.data;
+    int shard = _shard_index(ev->shard, data->total_shards);
     struct _discord_shard_cache *cache = &data->caches[shard];
     pthread_mutex_lock(&cache->lock);
     cache->valid = true;
@@ -64,8 +75,8 @@ EV_CB(ready, discord_ready)
 static void
 _on_shard_resumed(struct discord *client, const struct discord_identify *ev)
 {
-    int shard = ev->shard ? ev->shard->array[0] : 0;
     struct _discord_cache_data *data = client->cache.data;
+    int shard = _shard_index(ev->shard, data->total_shards);
     struct _discord_shard_cache *cache = &data->caches[shard];
     pthread_mutex_lock(&cache->lock);
     cache->valid = true;
@@ -76,8 +87,8 @@ static void
 _on_shard_reconnected(struct discord *client,
                       const struct discord_identify *ev)
 {
-    int shard = ev->shard ? ev->shard->array[0] : 0;
     struct _discord_cache_data *data = client->cache.data;
+    int shard = _shard_index(ev->shard, data->total_shards);
     struct _discord_shard_cache *cache = &data->caches[shard];
     _discord_shard_cache_cleanup(client, cache);
     pthread_mutex_lock(&cache->lock);
@@ -90,8 +101,8 @@ _on_shard_disconnected(struct discord *client,
                        const struct discord_identify *ev,
                        bool resumable)
 {
-    int shard = ev->shard ? ev->shard->array[0] : 0;
     struct _discord_cache_data *data = client->cache.data;
+    int shard = _shard_index(ev->shard, data->total_shards);
     struct _discord_shard_cache *cache = &data->caches[shard];
     if (!resumable) _discord_shard_cache_cleanup(client, cache);
     pthread_mutex_lock(&cache->lock);
@@ -173,6 +184,16 @@ EV_CB(message_delete, discord_message_delete)
 {
     CACHE_BEGIN(data, cache, shard, ev->guild_id);
     anomap_do(cache->msg_map, anomap_delete, (u64snowflake *)&ev->id, NULL);
+    CACHE_END(cache);
+}
+
+EV_CB(message_delete_bulk, discord_message_delete_bulk)
+{
+    if (!ev->ids) return;
+    CACHE_BEGIN(data, cache, shard, ev->guild_id);
+    for (int i = 0; i < ev->ids->size; ++i) {
+        anomap_do(cache->msg_map, anomap_delete, &ev->ids->array[i], NULL);
+    }
     CACHE_END(cache);
 }
 
@@ -271,7 +292,6 @@ discord_cache_enable(struct discord *client,
     client->cache.on_shard_disconnected = _on_shard_disconnected;
 
     if (options & DISCORD_CACHE_GUILDS) {
-        discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
         ASSIGN_CB(DISCORD_EV_GUILD_CREATE, guild_create);
         ASSIGN_CB(DISCORD_EV_GUILD_UPDATE, guild_update);
         ASSIGN_CB(DISCORD_EV_GUILD_DELETE, guild_delete);
@@ -289,6 +309,7 @@ discord_cache_enable(struct discord *client,
         ASSIGN_CB(DISCORD_EV_MESSAGE_CREATE, message_create);
         ASSIGN_CB(DISCORD_EV_MESSAGE_UPDATE, message_update);
         ASSIGN_CB(DISCORD_EV_MESSAGE_DELETE, message_delete);
+        ASSIGN_CB(DISCORD_EV_MESSAGE_DELETE_BULK, message_delete_bulk);
     }
 }
 

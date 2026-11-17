@@ -11,6 +11,7 @@
 void
 discord_shutdown(struct discord *client)
 {
+    if (!client || !client->gw.session) return;
     if (client->gw.session->status != DISCORD_SESSION_SHUTDOWN)
         discord_gateway_shutdown(&client->gw);
 }
@@ -18,6 +19,7 @@ discord_shutdown(struct discord *client)
 void
 discord_reconnect(struct discord *client, bool resume)
 {
+    if (!client) return;
     discord_gateway_reconnect(&client->gw, resume);
 }
 
@@ -25,7 +27,7 @@ void
 discord_request_guild_members(struct discord *client,
                               struct discord_request_guild_members *request)
 {
-
+    if (!client || !request) return;
     if (!GATEWAY_CB(DISCORD_EV_GUILD_MEMBERS_CHUNK)) {
         logmod_log(
             ERROR, client->logger,
@@ -39,6 +41,7 @@ void
 discord_update_voice_state(struct discord *client,
                            struct discord_update_voice_state *update)
 {
+    if (!client || !update) return;
     discord_gateway_send_update_voice_state(&client->gw, update);
 }
 
@@ -46,14 +49,16 @@ void
 discord_update_presence(struct discord *client,
                         struct discord_presence_update *presence)
 {
+    if (!client || !presence) return;
     discord_gateway_send_presence_update(&client->gw, presence);
 }
 
 void
 discord_add_intents(struct discord *client, uint64_t code)
 {
+    if (!client) return;
     const struct logmod_logger *logger = client->logger;
-    if (WS_CONNECTED == ws_get_status(client->gw.ws)) {
+    if (client->gw.ws && WS_CONNECTED == ws_get_status(client->gw.ws)) {
         logmod_log(ERROR, logger, "Can't set intents to a running client.");
         return;
     }
@@ -64,8 +69,9 @@ discord_add_intents(struct discord *client, uint64_t code)
 void
 discord_remove_intents(struct discord *client, uint64_t code)
 {
+    if (!client) return;
     const struct logmod_logger *logger = client->logger;
-    if (WS_CONNECTED == ws_get_status(client->gw.ws)) {
+    if (client->gw.ws && WS_CONNECTED == ws_get_status(client->gw.ws)) {
         logmod_log(ERROR, logger,
                    "Can't remove intents from a running client.");
         return;
@@ -77,7 +83,7 @@ discord_remove_intents(struct discord *client, uint64_t code)
 void
 discord_set_prefix(struct discord *client, const char prefix[])
 {
-    if (!prefix || !*prefix) return;
+    if (!client || !prefix || !*prefix) return;
 
     discord_message_commands_set_prefix(&client->commands, prefix,
                                         strlen(prefix));
@@ -86,6 +92,7 @@ discord_set_prefix(struct discord *client, const char prefix[])
 void
 discord_set_event_scheduler(struct discord *client, discord_ev_scheduler cb)
 {
+    if (!client) return;
     client->gw.scheduler = cb;
 }
 
@@ -95,12 +102,10 @@ discord_set_on_command(struct discord *client,
                        void (*cb)(struct discord *client,
                                   const struct discord_message *event))
 {
+    if (!client) return;
     size_t length = (!command || !*command) ? 0 : strlen(command);
 
     discord_message_commands_append(&client->commands, command, length, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MESSAGES
-                                    | DISCORD_GATEWAY_DIRECT_MESSAGES
-                                    | DISCORD_GATEWAY_MESSAGE_CONTENT);
 }
 
 void
@@ -110,6 +115,7 @@ discord_set_on_commands(struct discord *client,
                         void (*cb)(struct discord *client,
                                    const struct discord_message *event))
 {
+    if (!client || !commands) return;
     for (int i = 0; i < amount; ++i)
         discord_set_on_command(client, commands[i], cb);
 }
@@ -128,6 +134,9 @@ discord_set_on_application_command_permissions_update(
     void (*cb)(struct discord *client,
                const struct discord_application_command_permissions *event))
 {
+    logmod_log(
+        WARN, client->logger,
+        "Fluxer Gateway v1 does not emit APPLICATION_COMMAND_PERMISSIONS_UPDATE");
     ASSIGN_CB(DISCORD_EV_APPLICATION_COMMAND_PERMISSIONS_UPDATE, cb);
 }
 
@@ -137,8 +146,9 @@ discord_set_on_auto_moderation_rule_create(
     void (*cb)(struct discord *client,
                const struct discord_auto_moderation_rule *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit AUTO_MODERATION_RULE_CREATE");
     ASSIGN_CB(DISCORD_EV_AUTO_MODERATION_RULE_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_AUTO_MODERATION_CONFIGURATION);
 }
 
 void
@@ -147,8 +157,9 @@ discord_set_on_auto_moderation_rule_update(
     void (*cb)(struct discord *client,
                const struct discord_auto_moderation_rule *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit AUTO_MODERATION_RULE_UPDATE");
     ASSIGN_CB(DISCORD_EV_AUTO_MODERATION_RULE_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_AUTO_MODERATION_CONFIGURATION);
 }
 
 void
@@ -157,8 +168,9 @@ discord_set_on_auto_moderation_rule_delete(
     void (*cb)(struct discord *client,
                const struct discord_auto_moderation_rule *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit AUTO_MODERATION_RULE_DELETE");
     ASSIGN_CB(DISCORD_EV_AUTO_MODERATION_RULE_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_AUTO_MODERATION_CONFIGURATION);
 }
 
 void
@@ -167,8 +179,10 @@ discord_set_on_auto_moderation_action_execution(
     void (*cb)(struct discord *client,
                const struct discord_auto_moderation_action_execution *event))
 {
+    logmod_log(
+        WARN, client->logger,
+        "Fluxer Gateway v1 does not emit AUTO_MODERATION_ACTION_EXECUTION");
     ASSIGN_CB(DISCORD_EV_AUTO_MODERATION_ACTION_EXECUTION, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_AUTO_MODERATION_EXECUTION);
 }
 
 void
@@ -177,7 +191,6 @@ discord_set_on_channel_create(struct discord *client,
                                          const struct discord_channel *event))
 {
     ASSIGN_CB(DISCORD_EV_CHANNEL_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -186,7 +199,6 @@ discord_set_on_channel_update(struct discord *client,
                                          const struct discord_channel *event))
 {
     ASSIGN_CB(DISCORD_EV_CHANNEL_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -195,7 +207,6 @@ discord_set_on_channel_delete(struct discord *client,
                                          const struct discord_channel *event))
 {
     ASSIGN_CB(DISCORD_EV_CHANNEL_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -205,8 +216,6 @@ discord_set_on_channel_pins_update(
                const struct discord_channel_pins_update *event))
 {
     ASSIGN_CB(DISCORD_EV_CHANNEL_PINS_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS
-                                    | DISCORD_GATEWAY_DIRECT_MESSAGES);
 }
 
 void
@@ -215,7 +224,6 @@ discord_set_on_thread_create(struct discord *client,
                                         const struct discord_channel *event))
 {
     ASSIGN_CB(DISCORD_EV_THREAD_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -224,7 +232,6 @@ discord_set_on_thread_update(struct discord *client,
                                         const struct discord_channel *event))
 {
     ASSIGN_CB(DISCORD_EV_THREAD_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -233,7 +240,6 @@ discord_set_on_thread_delete(struct discord *client,
                                         const struct discord_channel *event))
 {
     ASSIGN_CB(DISCORD_EV_THREAD_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -243,7 +249,6 @@ discord_set_on_thread_list_sync(
                const struct discord_thread_list_sync *event))
 {
     ASSIGN_CB(DISCORD_EV_THREAD_LIST_SYNC, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -253,7 +258,6 @@ discord_set_on_thread_member_update(
                const struct discord_thread_member *event))
 {
     ASSIGN_CB(DISCORD_EV_THREAD_MEMBER_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -263,8 +267,6 @@ discord_set_on_thread_members_update(
                const struct discord_thread_members_update *event))
 {
     ASSIGN_CB(DISCORD_EV_THREAD_MEMBERS_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS
-                                    | DISCORD_GATEWAY_GUILD_MEMBERS);
 }
 
 void
@@ -273,7 +275,6 @@ discord_set_on_guild_create(struct discord *client,
                                        const struct discord_guild *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -282,7 +283,6 @@ discord_set_on_guild_update(struct discord *client,
                                        const struct discord_guild *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -291,7 +291,6 @@ discord_set_on_guild_delete(struct discord *client,
                                        const struct discord_guild *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -301,7 +300,6 @@ discord_set_on_guild_ban_add(
                const struct discord_guild_ban_add *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_BAN_ADD, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_BANS);
 }
 
 void
@@ -311,7 +309,6 @@ discord_set_on_guild_ban_remove(
                const struct discord_guild_ban_remove *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_BAN_REMOVE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_BANS);
 }
 
 void
@@ -321,7 +318,6 @@ discord_set_on_guild_emojis_update(
                const struct discord_guild_emojis_update *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_EMOJIS_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_EMOJIS_AND_STICKERS);
 }
 
 void
@@ -331,7 +327,6 @@ discord_set_on_guild_stickers_update(
                const struct discord_guild_stickers_update *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_STICKERS_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_EMOJIS_AND_STICKERS);
 }
 
 void
@@ -340,8 +335,9 @@ discord_set_on_guild_integrations_update(
     void (*cb)(struct discord *client,
                const struct discord_guild_integrations_update *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit GUILD_INTEGRATIONS_UPDATE");
     ASSIGN_CB(DISCORD_EV_GUILD_INTEGRATIONS_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_INTEGRATIONS);
 }
 
 void
@@ -351,7 +347,6 @@ discord_set_on_guild_member_add(
                const struct discord_guild_member *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_MEMBER_ADD, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MEMBERS);
 }
 
 void
@@ -361,7 +356,6 @@ discord_set_on_guild_member_update(
                const struct discord_guild_member_update *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_MEMBER_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MEMBERS);
 }
 
 void
@@ -371,7 +365,6 @@ discord_set_on_guild_member_remove(
                const struct discord_guild_member_remove *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_MEMBER_REMOVE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MEMBERS);
 }
 
 void
@@ -390,7 +383,6 @@ discord_set_on_guild_role_create(
                const struct discord_guild_role_create *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_ROLE_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -400,7 +392,6 @@ discord_set_on_guild_role_update(
                const struct discord_guild_role_update *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_ROLE_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -410,7 +401,6 @@ discord_set_on_guild_role_delete(
                const struct discord_guild_role_delete *event))
 {
     ASSIGN_CB(DISCORD_EV_GUILD_ROLE_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -419,8 +409,9 @@ discord_set_on_guild_scheduled_event_create(
     void (*cb)(struct discord *client,
                const struct discord_guild_scheduled_event *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit GUILD_SCHEDULED_EVENT_CREATE");
     ASSIGN_CB(DISCORD_EV_GUILD_SCHEDULED_EVENT_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_SCHEDULED_EVENTS);
 }
 
 void
@@ -429,8 +420,9 @@ discord_set_on_guild_scheduled_event_update(
     void (*cb)(struct discord *client,
                const struct discord_guild_scheduled_event *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit GUILD_SCHEDULED_EVENT_UPDATE");
     ASSIGN_CB(DISCORD_EV_GUILD_SCHEDULED_EVENT_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_SCHEDULED_EVENTS);
 }
 
 void
@@ -439,8 +431,9 @@ discord_set_on_guild_scheduled_event_delete(
     void (*cb)(struct discord *client,
                const struct discord_guild_scheduled_event *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit GUILD_SCHEDULED_EVENT_DELETE");
     ASSIGN_CB(DISCORD_EV_GUILD_SCHEDULED_EVENT_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_SCHEDULED_EVENTS);
 }
 
 void
@@ -449,8 +442,10 @@ discord_set_on_guild_scheduled_event_user_add(
     void (*cb)(struct discord *client,
                const struct discord_guild_scheduled_event_user_add *event))
 {
+    logmod_log(
+        WARN, client->logger,
+        "Fluxer Gateway v1 does not emit GUILD_SCHEDULED_EVENT_USER_ADD");
     ASSIGN_CB(DISCORD_EV_GUILD_SCHEDULED_EVENT_USER_ADD, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_SCHEDULED_EVENTS);
 }
 
 void
@@ -459,8 +454,10 @@ discord_set_on_guild_scheduled_event_user_remove(
     void (*cb)(struct discord *client,
                const struct discord_guild_scheduled_event_user_remove *event))
 {
+    logmod_log(
+        WARN, client->logger,
+        "Fluxer Gateway v1 does not emit GUILD_SCHEDULED_EVENT_USER_REMOVE");
     ASSIGN_CB(DISCORD_EV_GUILD_SCHEDULED_EVENT_USER_REMOVE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_SCHEDULED_EVENTS);
 }
 
 void
@@ -469,8 +466,9 @@ discord_set_on_integration_create(
     void (*cb)(struct discord *client,
                const struct discord_integration *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit INTEGRATION_CREATE");
     ASSIGN_CB(DISCORD_EV_INTEGRATION_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_INTEGRATIONS);
 }
 
 void
@@ -479,8 +477,9 @@ discord_set_on_integration_update(
     void (*cb)(struct discord *client,
                const struct discord_integration *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit INTEGRATION_UPDATE");
     ASSIGN_CB(DISCORD_EV_INTEGRATION_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_INTEGRATIONS);
 }
 
 void
@@ -489,8 +488,9 @@ discord_set_on_integration_delete(
     void (*cb)(struct discord *client,
                const struct discord_integration_delete *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit INTEGRATION_DELETE");
     ASSIGN_CB(DISCORD_EV_INTEGRATION_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_INTEGRATIONS);
 }
 
 void
@@ -499,6 +499,8 @@ discord_set_on_interaction_create(
     void (*cb)(struct discord *client,
                const struct discord_interaction *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit INTERACTION_CREATE");
     ASSIGN_CB(DISCORD_EV_INTERACTION_CREATE, cb);
 }
 
@@ -509,7 +511,6 @@ discord_set_on_invite_create(
                const struct discord_invite_create *event))
 {
     ASSIGN_CB(DISCORD_EV_INVITE_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_INVITES);
 }
 
 void
@@ -519,7 +520,6 @@ discord_set_on_invite_delete(
                const struct discord_invite_delete *event))
 {
     ASSIGN_CB(DISCORD_EV_INVITE_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_INVITES);
 }
 
 void
@@ -528,8 +528,6 @@ discord_set_on_message_create(struct discord *client,
                                          const struct discord_message *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MESSAGES
-                                    | DISCORD_GATEWAY_DIRECT_MESSAGES);
 }
 
 void
@@ -538,8 +536,6 @@ discord_set_on_message_update(struct discord *client,
                                          const struct discord_message *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MESSAGES
-                                    | DISCORD_GATEWAY_DIRECT_MESSAGES);
 }
 
 void
@@ -549,8 +545,6 @@ discord_set_on_message_delete(
                const struct discord_message_delete *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MESSAGES
-                                    | DISCORD_GATEWAY_DIRECT_MESSAGES);
 }
 
 void
@@ -560,7 +554,6 @@ discord_set_on_message_delete_bulk(
                const struct discord_message_delete_bulk *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_DELETE_BULK, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MESSAGES);
 }
 
 void
@@ -570,9 +563,6 @@ discord_set_on_message_reaction_add(
                const struct discord_message_reaction_add *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_REACTION_ADD, cb);
-    discord_add_intents(client,
-                        DISCORD_GATEWAY_GUILD_MESSAGE_REACTIONS
-                            | DISCORD_GATEWAY_DIRECT_MESSAGE_REACTIONS);
 }
 
 void
@@ -582,9 +572,6 @@ discord_set_on_message_reaction_remove(
                const struct discord_message_reaction_remove *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_REACTION_REMOVE, cb);
-    discord_add_intents(client,
-                        DISCORD_GATEWAY_GUILD_MESSAGE_REACTIONS
-                            | DISCORD_GATEWAY_DIRECT_MESSAGE_REACTIONS);
 }
 
 void
@@ -594,9 +581,6 @@ discord_set_on_message_reaction_remove_all(
                const struct discord_message_reaction_remove_all *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_REACTION_REMOVE_ALL, cb);
-    discord_add_intents(client,
-                        DISCORD_GATEWAY_GUILD_MESSAGE_REACTIONS
-                            | DISCORD_GATEWAY_DIRECT_MESSAGE_REACTIONS);
 }
 
 void
@@ -606,9 +590,6 @@ discord_set_on_message_reaction_remove_emoji(
                const struct discord_message_reaction_remove_emoji *event))
 {
     ASSIGN_CB(DISCORD_EV_MESSAGE_REACTION_REMOVE_EMOJI, cb);
-    discord_add_intents(client,
-                        DISCORD_GATEWAY_GUILD_MESSAGE_REACTIONS
-                            | DISCORD_GATEWAY_DIRECT_MESSAGE_REACTIONS);
 }
 
 void
@@ -618,7 +599,6 @@ discord_set_on_presence_update(
                const struct discord_presence_update *event))
 {
     ASSIGN_CB(DISCORD_EV_PRESENCE_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_PRESENCES);
 }
 
 void
@@ -627,8 +607,9 @@ discord_set_on_stage_instance_create(
     void (*cb)(struct discord *client,
                const struct discord_stage_instance *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit STAGE_INSTANCE_CREATE");
     ASSIGN_CB(DISCORD_EV_STAGE_INSTANCE_CREATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -637,8 +618,9 @@ discord_set_on_stage_instance_update(
     void (*cb)(struct discord *client,
                const struct discord_stage_instance *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit STAGE_INSTANCE_UPDATE");
     ASSIGN_CB(DISCORD_EV_STAGE_INSTANCE_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -647,8 +629,9 @@ discord_set_on_stage_instance_delete(
     void (*cb)(struct discord *client,
                const struct discord_stage_instance *event))
 {
+    logmod_log(WARN, client->logger,
+               "Fluxer Gateway v1 does not emit STAGE_INSTANCE_DELETE");
     ASSIGN_CB(DISCORD_EV_STAGE_INSTANCE_DELETE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILDS);
 }
 
 void
@@ -658,8 +641,6 @@ discord_set_on_typing_start(
                const struct discord_typing_start *event))
 {
     ASSIGN_CB(DISCORD_EV_TYPING_START, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_MESSAGE_TYPING
-                                    | DISCORD_GATEWAY_DIRECT_MESSAGE_TYPING);
 }
 
 void
@@ -677,7 +658,6 @@ discord_set_on_voice_state_update(
                const struct discord_voice_state *event))
 {
     ASSIGN_CB(DISCORD_EV_VOICE_STATE_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_VOICE_STATES);
 }
 
 void
@@ -687,7 +667,6 @@ discord_set_on_voice_server_update(
                const struct discord_voice_server_update *event))
 {
     ASSIGN_CB(DISCORD_EV_VOICE_SERVER_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_VOICE_STATES);
 }
 
 void
@@ -697,5 +676,4 @@ discord_set_on_webhooks_update(
                const struct discord_webhooks_update *event))
 {
     ASSIGN_CB(DISCORD_EV_WEBHOOKS_UPDATE, cb);
-    discord_add_intents(client, DISCORD_GATEWAY_GUILD_WEBHOOKS);
 }

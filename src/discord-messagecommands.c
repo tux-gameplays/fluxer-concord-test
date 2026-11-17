@@ -129,11 +129,17 @@ discord_message_commands_try_perform(struct discord_message_commands *cmds,
 {
     const jsmnf_pair *f;
 
-    if (!(f = jsmnf_find(payload->data, "content", 7))) return false;
+    if (!payload->data || !(f = jsmnf_find(payload->data, "content", 7))
+        || f->v->type != JSMN_STRING)
+    {
+        return false;
+    }
 
-    if (cmds->length
-        && !strncmp(cmds->prefix.start, payload->json.start + f->v->start,
-                    cmds->prefix.size))
+    const size_t content_len = (size_t)(f->v->end - f->v->start);
+    if (cmds->length && content_len >= cmds->prefix.size
+        && (!cmds->prefix.size
+            || !strncmp(cmds->prefix.start, payload->json.start + f->v->start,
+                        cmds->prefix.size)))
     {
         struct discord *client = CLIENT(cmds, commands);
         struct discord_message *event_data = calloc(1, sizeof *event_data);
@@ -143,6 +149,10 @@ discord_message_commands_try_perform(struct discord_message_commands *cmds,
 
         discord_message_from_jsmnf(payload->data, payload->json.start,
                                    event_data);
+        if (!event_data->content) {
+            _discord_message_cleanup_v(event_data);
+            return false;
+        }
 
         command.start = event_data->content + cmds->prefix.size;
         command.size = strcspn(command.start, " \n\t\r");
