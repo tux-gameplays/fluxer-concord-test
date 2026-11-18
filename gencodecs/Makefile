@@ -66,16 +66,18 @@ all: $(OUT_O)
 $(PP): $(PP).c
 	$(HOSTCC) $(CFLAGS) $< -o $@
 
+API_PRE     = $(wildcard $(API_DIR)/*.PRE.h)
+
 $(OUT_O): $(OUT_C) $(OUT_H)
 	$(CC) -c $(CFLAGS) $< -o $@
-$(OUT_H): $(INPUT) $(PP)
+$(OUT_H): $(INPUT) $(API_PRE) $(PP)
 	@ echo "Generating header"
 	@ echo "#ifndef $(HEADER_TAG)" > $@
 	@ echo "#define $(HEADER_TAG)" >> $@
 	$(CPP) $(CFLAGS) -DGENCODECS_HEADER -DGENCODECS_DATA $(CPPFLAGS) $(INPUT) | ./$(PP) >> $@
 	$(CPP) $(CFLAGS) $(DFLAGS) -DGENCODECS_HEADER $(CPPFLAGS) $(INPUT) | ./$(PP) >> $@
 	@ echo "#endif /* $(HEADER_TAG) */" >> $@
-$(OUT_C): $(INPUT) $(PP)
+$(OUT_C): $(INPUT) $(API_PRE) $(PP)
 	@ echo "Generating forward definitions"
 	@ echo "#include \"$(OUT_H)\"" > $(OUT_C)
 	$(CPP) $(CFLAGS) $(DFLAGS) -DGENCODECS_FORWARD -DGENCODECS_DATA $(CPPFLAGS) $(INPUT) | ./$(PP) >> $(OUT_C)

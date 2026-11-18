@@ -868,6 +868,58 @@ unsupported_group_dm_add_recipient_returns_unsupported_without_network_traffic(
     PASS();
 }
 
+TEST
+embed_and_reply_serialization_omits_unset_fields(void)
+{
+    struct discord_embed embed = {
+        .title = "Titulo",
+        .description = "Descricao",
+        .color = 0xC27C0E,
+    };
+    struct discord_create_message embed_msg = {
+        .embeds =
+            &(struct discord_embeds){
+                .size = 1,
+                .array = &embed,
+            },
+    };
+    char *json = NULL;
+    size_t json_sz = 0;
+    ASSERT_EQ(CCORD_OK,
+              discord_create_message_to_json(&json, &json_sz, &embed_msg));
+    ASSERT(json != NULL);
+    ASSERT(strstr(json, "\"title\":\"Titulo\"") != NULL);
+    ASSERT(strstr(json, "\"description\":\"Descricao\"") != NULL);
+    ASSERT(strstr(json, "\"color\":12745742") != NULL);
+    ASSERT(strstr(json, "\"url\"") == NULL);
+    ASSERT(strstr(json, "\"type\"") == NULL);
+    ASSERT(strstr(json, "\"content\"") == NULL);
+    free(json);
+
+    struct discord_message_reference mref = {
+        .message_id = UINT64_C(9223372036854775810),
+        .channel_id = UINT64_C(1565385514767360000),
+        .fail_if_not_exists = true,
+    };
+    struct discord_create_message reply_msg = {
+        .content = "oi coelho",
+        .message_reference = &mref,
+    };
+    json = NULL;
+    json_sz = 0;
+    ASSERT_EQ(CCORD_OK,
+              discord_create_message_to_json(&json, &json_sz, &reply_msg));
+    ASSERT(json != NULL);
+    ASSERT(strstr(json, "\"content\":\"oi coelho\"") != NULL);
+    ASSERT(strstr(json, "\"message_id\":\"9223372036854775810\"") != NULL);
+    ASSERT(strstr(json, "\"channel_id\":\"1565385514767360000\"") != NULL);
+    ASSERT(strstr(json, "\"guild_id\"") == NULL);
+    ASSERT(strstr(json, "\"embeds\"") == NULL);
+    free(json);
+
+    PASS();
+}
+
 GREATEST_MAIN_DEFS();
 
 int
@@ -881,6 +933,7 @@ main(int argc, char *argv[])
     RUN_TEST(thread_operations_and_archived_thread_cursors);
     RUN_TEST(
         unsupported_group_dm_add_recipient_returns_unsupported_without_network_traffic);
+    RUN_TEST(embed_and_reply_serialization_omits_unset_fields);
 
     GREATEST_MAIN_END();
 }

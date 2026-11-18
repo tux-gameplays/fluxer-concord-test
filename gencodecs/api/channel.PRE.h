@@ -281,11 +281,17 @@ PP_DEFINE(DISCORD_MESSAGE_HAS_COMPONENTS_V2 1 << 15)
 #if GENCODECS_RECIPE & (DATA | JSON)
 STRUCT(discord_message_reference)
   /** id of the originating message */
+  COND_WRITE(self->message_id != 0)
     FIELD_SNOWFLAKE(message_id)
+  COND_END
   /** id of the originating message's channel */
+  COND_WRITE(self->channel_id != 0)
     FIELD_SNOWFLAKE(channel_id)
+  COND_END
   /** id of the originating message's guild */
+  COND_WRITE(self->guild_id != 0)
     FIELD_SNOWFLAKE(guild_id)
+  COND_END
   /** when sending, whether to error if the referenced message doesn't exist
         instead of sending as normal (non-reply) message, default true */
     FIELD(fail_if_not_exists, bool, true)
@@ -528,7 +534,9 @@ LIST_END
 #if GENCODECS_RECIPE & (DATA | JSON)
 PUB_STRUCT(discord_embed_thumbnail)
   /** source url of thumbnail (only supports http(s) and attachments) */
+  COND_WRITE(self->url != NULL)
     FIELD_PTR(url, char, *)
+  COND_END
   /** a proxied url of the thumbnail */
   COND_WRITE(self->proxy_url != NULL)
     FIELD_PTR(proxy_url, char, *)
@@ -570,7 +578,9 @@ STRUCT_END
 #if GENCODECS_RECIPE & (DATA | JSON)
 PUB_STRUCT(discord_embed_image)
   /** source url of image (only supports http(s) and attachments) */
+  COND_WRITE(self->url != NULL)
     FIELD_PTR(url, char, *)
+  COND_END
   /** a proxied url of the image */
   COND_WRITE(self->proxy_url != NULL)
     FIELD_PTR(proxy_url, char, *)
@@ -604,7 +614,9 @@ STRUCT_END
 #if GENCODECS_RECIPE & (DATA | JSON)
 PUB_STRUCT(discord_embed_author)
   /** name of author */
+  COND_WRITE(self->name != NULL)
     FIELD_PTR(name, char, *)
+  COND_END
   /** url of author */
   COND_WRITE(self->url != NULL)
     FIELD_PTR(url, char, *)
@@ -624,7 +636,9 @@ STRUCT_END
 #if GENCODECS_RECIPE & (DATA | JSON)
 PUB_STRUCT(discord_embed_footer)
   /** footer text */
+  COND_WRITE(self->text != NULL)
     FIELD_PTR(text, char, *)
+  COND_END
   /** url of footer icon (only supports http(s) and attachments) */
   COND_WRITE(self->icon_url != NULL)
     FIELD_PTR(icon_url, char, *)
@@ -661,19 +675,29 @@ LIST_END
 #if GENCODECS_RECIPE & (DATA | JSON)
 PUB_STRUCT(discord_embed)
   /** title of embed */
+  COND_WRITE(self->title != NULL)
     FIELD_PTR(title, char, *)
+  COND_END
   /** type of embed (always \"rich\" for webhook embeds) */
+  COND_WRITE(self->type != NULL)
     FIELD_PTR(type, char, *)
+  COND_END
   /** description of embed */
+  COND_WRITE(self->description != NULL)
     FIELD_PTR(description, char, *)
+  COND_END
   /** url of embed */
+  COND_WRITE(self->url != NULL)
     FIELD_PTR(url, char, *)
+  COND_END
   /** timestamp of embed content */
   COND_WRITE(self->timestamp != 0)
     FIELD_TIMESTAMP(timestamp)
   COND_END
   /** color code of the embed */
-  FIELD(color, int, 0)
+  COND_WRITE(self->color != 0)
+    FIELD(color, int, 0)
+  COND_END
   /** footer information */
   COND_WRITE(self->footer != NULL)
     FIELD_STRUCT_PTR(footer, discord_embed_footer, *)
@@ -953,13 +977,17 @@ STRUCT_END
 #if GENCODECS_RECIPE & (DATA | JSON)
 PUB_STRUCT(discord_create_message)
   /** the message contents (up to 2000 characters) */
+  COND_WRITE(self->content != NULL)
     FIELD_PTR(content, char, *)
+  COND_END
   /** true if this is a TTS message */
   COND_WRITE(self->tts != false)
     FIELD(tts, bool, false)
   COND_END
   /** embedded `rich` content (up to 6000 characters) */
+  COND_WRITE(self->embeds != NULL)
     FIELD_STRUCT_PTR(embeds, discord_embeds, *)
+  COND_END
   /** allowed mentions for the message */
   COND_WRITE(self->allowed_mentions != NULL)
     FIELD_STRUCT_PTR(allowed_mentions, discord_allowed_mention, *)
@@ -1010,9 +1038,13 @@ STRUCT_END
 #if GENCODECS_RECIPE & (DATA | JSON)
 PUB_STRUCT(discord_edit_message)
   /** the message contents (up to 2000 characters) */
+  COND_WRITE(self->content != NULL)
     FIELD_PTR(content, char, *)
+  COND_END
   /** embedded `rich` content (up to 6000 characters) */
+  COND_WRITE(self->embeds != NULL)
     FIELD_STRUCT_PTR(embeds, discord_embeds, *)
+  COND_END
   /** @ref DiscordAPIChannelMessageFlags combined as a bitfield (only
        `SUPPRESS_EMBEDS` can be set) */
   COND_WRITE(self->flags != 0)

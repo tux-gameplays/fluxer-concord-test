@@ -156,9 +156,9 @@ discord_gateway_dispatch(struct discord_gateway *gw)
         }
         break;
     case DISCORD_EV_NONE:
-        logmod_log(WARN, gw->logger,
-                   "Received unimplemented GATEWAY_DISPATCH event (code: %d)",
-                   event);
+        logmod_log(DEBUG, gw->logger,
+                   "Ignoring unhandled GATEWAY_DISPATCH event '%s'",
+                   gw->payload.name);
         break;
     }
 }
